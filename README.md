@@ -16,5 +16,5 @@ This repository contains code + dataset to create a web app to display choroplet
 ### This is how Dash App looks
 
 <p align="center">
-	<img src="https://github.com/vinits5/saral_ml/blob/master/images/choropleth_map.png" height="170">
+	<img src="https://github.com/vinits5/saral_ml/blob/main/images/choropleth_map.png" height="170">
 </p>
