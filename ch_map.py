@@ -69,7 +69,7 @@ class Dataset:
 
 	@staticmethod
 	def replaceNA(data, replace_value):
-		idx = np.where(data=='NA')
+		idx = np.where(np.isnan(data))
 		data[idx[0]] = replace_value
 		return data
 
