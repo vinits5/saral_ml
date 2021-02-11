@@ -493,7 +493,7 @@ class UpdateClass:
 							geojson=self.mh_villages_json,
 							featureidkey='properties.GPNAME',
 							locations='villages',
-							color='random',
+							color='variable',
 							color_continuous_scale=colorscale,
 							# hover_data=hover_data
 							)
