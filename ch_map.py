@@ -147,6 +147,22 @@ class Regressor:
 	def __init__(self, dataset):
 		self.dataset = dataset
 
+	def __call__(self, x_id, y_id, metric=False):
+		if multivariate:
+			return find_multivariate_regression(x_id, y_id, metric)
+		else:
+			return find_regression(x_id, y_id, metric)
+
+	def find_multivariate_regression(self, x_id, y_id, metric=False):
+		x_data = self.dataset.read_data(x_id)
+		x_data = np.array([self.dataset.replaceNA(x.astype(np.float32), 0.0) for x in x_data])
+		y_data = self.dataset.replaceNA(self.dataset.read_data(y_id).astype(np.float32), 0.0)
+
+		from sklearn.linear_model import LinearRegression
+		model = LinearRegression().fit(x_data.T, y_data)
+		y_pred = model.predict(x_data.T)
+		return x_data, y_data, y_pred, model.score(x_data.T, y_data)
+
 	def find_regression(self, x_id, y_id, correlation=False):
 		x_data = self.dataset.replaceNA(self.dataset.read_data(x_id).astype(np.float32), 0.0)
 		y_data = self.dataset.replaceNA(self.dataset.read_data(y_id).astype(np.float32), 0.0)
@@ -155,6 +171,7 @@ class Regressor:
 		y_pred = slope*x_data + intercept
 		if correlation: print("Correlation: {}".format(corr))
 		return x_data, y_data, y_pred, corr
+
 
 
 class App:
@@ -200,10 +217,10 @@ class App:
 			], style={'width': '48%', 'display': 'inline-block'}),
 			
 			html.Div([
-				dcc.Dropdown(id='input_id_india',
+				dcc.Checklist(id='input_id_india',
 						options = [{'label': variable, 'value': variable} for variable in list(state_vars.keys())],
-						multi=False,
-						value=list(state_vars.keys())[0],
+						# multi=False,
+						value=[list(state_vars.keys())[0]],
 						style={'width':"80%"}
 						),
 				# html.Br(),
@@ -305,6 +322,7 @@ class UpdateClass:
 
 	def __call__(self, input_id_india, output_id_india, input_id_mh, output_id_mh, 
 				display_choice, colorscale, select_district, input_id_district):
+
 		if input_id_india != self.input_id_india or output_id_india != self.output_id_india:
 			self.update_india_map(input_id_india, output_id_india)
 			self.input_id_india, self.output_id_india = input_id_india, output_id_india
@@ -348,17 +366,40 @@ class UpdateClass:
 				), width=800, height=800) for x in inputs]
 
 	def update_india_map(self, input_id_india, output_id_india):
-		x_id = state_vars[input_id_india]
 		y_id = state_vars[output_id_india]
-		x_data, y_data, y_pred, corr = self.india_regressor.find_regression(x_id, y_id)
-		x_data, y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x_data, y_data, y_pred])
+		
+		if len(input_id_india) == 0:
+			input_id_india = list(state_vars.keys())[0]
+			x_data, y_data, y_pred, corr = self.india_regressor.find_regression(x_id, y_id)
+			x_data, y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x_data, y_data, y_pred])
+		elif len(input_id_india) == 1:
+			x_id = state_vars[input_id_india[0]]
+			x_data, y_data, y_pred, corr = self.india_regressor.find_regression(x_id, y_id)
+			x_data, y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x_data, y_data, y_pred])
+		else:
+			x_id = [state_vars[ii] for ii in input_id_india]
+			x_data, y_data, y_pred, corr = self.india_regressor.find_multivariate_regression(x_id, y_id)
+			x_data = np.array([self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x]) for x in x_data])
+			y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [y_data, y_pred])
+			x_data = x_data.T
+			x_data = x_data[:,0,:]
+
 		self.india_corr = "The Correlation Factor is {}".format(corr)
 
-		data = {'state': self.app.states, 'variable': x_data, 'input': x_data, 'output_pred': y_pred}
+		data = {'state': self.app.states, 'variable': y_pred, 'output_pred': y_pred}
+		if len(input_id_india) > 1:
+			for idx, iid in enumerate(input_id_india):
+				data[iid] = x_data[:,idx]
+		else:
+			data['input'] = x_data
+
 		if self.display_choice == 'Input':
+			data['variable'] = x_data[:,0]
 			hover_data = ['output_pred']
 		if self.display_choice == 'Prediction':
 			hover_data = ['input']
+			if len(input_id_india) > 1:
+				hover_data = input_id_india
 
 		self.df_india = App.create_dataframe(data)
 
@@ -380,6 +421,7 @@ class UpdateClass:
 
 		data = {'district': self.app.districts, 'variable': y_pred, 'input': x_data, 'output_pred': y_pred}
 		if self.display_choice == 'Input':
+			data['variable'] = x_data
 			hover_data = ['output_pred']
 		if self.display_choice == 'Prediction':
 			hover_data = ['input']
