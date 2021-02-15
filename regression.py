@@ -82,7 +82,7 @@ class Regression:
 			colors = ['g' if cc==True else 'r' for cc in self.y_pred == self.y_data]
 			plt.scatter(self.x_data, self.y_pred, s=50, c=colors)
 			plt.title('Model Accuracy: {}'.format(self.corr), fontsize=20)
-			plt.plot([25550, 25520], [0, 1], color='b', linewidth=3, ls='--')
+			plt.plot([25550, 25550], [0, 1], color='b', linewidth=3, ls='--')
 			# plt.xscale('log', base=2.718281)
 
 		plt.tick_params(labelsize=15, width=3, length=10)
