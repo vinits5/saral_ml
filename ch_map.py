@@ -144,14 +144,38 @@ class Dataset:
 		return np.array(result).reshape(-1)
 
 class Regressor:
-	def __init__(self, dataset):
+	def __init__(self, dataset, vars_dict, app, category='state'):
 		self.dataset = dataset
+		self.vars_dict = vars_dict
+		self.app = app
+		self.category = category
+		if self.category == 'state': 
+			self.func = self.dataset.avg_up_state_variables
+			self.map_boundaries = self.app.states
+		elif self.category == 'district': 
+			self.func = self.dataset.avg_up_district_variables
+			self.map_boundaries = self.app.districts
 
-	def __call__(self, x_id, y_id, metric=False):
-		if multivariate:
-			return find_multivariate_regression(x_id, y_id, metric)
+	def __call__(self, input_id, output_id, metric=False):
+		y_id = self.vars_dict[output_id]
+		if len(input_id) == 0:
+			x_id = list(self.vars_dict.values())[0]
+			x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			x_data, y_data, y_pred = self.func(self.map_boundaries, [x_data, y_data, y_pred])
+			x_data = x_data.reshape(-1,1)
+		elif len(input_id) == 1:
+			x_id = self.vars_dict[input_id[0]]
+			x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			x_data, y_data, y_pred = self.func(self.map_boundaries, [x_data, y_data, y_pred])
+			x_data = x_data.reshape(-1,1)
 		else:
-			return find_regression(x_id, y_id, metric)
+			x_id = [self.vars_dict[ii] for ii in input_id]
+			x_data, y_data, y_pred, corr = self.find_multivariate_regression(x_id, y_id)
+			x_data = np.array([self.func(self.map_boundaries, [x]) for x in x_data])
+			y_data, y_pred = self.func(self.map_boundaries, [y_data, y_pred])
+			x_data = x_data.T
+			x_data = x_data[:,0,:]
+		return x_data, y_data, y_pred, corr
 
 	def find_multivariate_regression(self, x_id, y_id, metric=False):
 		x_data = self.dataset.read_data(x_id)
@@ -239,10 +263,10 @@ class App:
 			], style={'width': '48%', 'display': 'inline-block'}),
 
 			html.Div([
-				dcc.Dropdown(id='input_id_mh',
+				dcc.Checklist(id='input_id_mh',
 						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
-						multi=False,
-						value=list(district_vars.keys())[0],
+						# multi=False,
+						value=[list(district_vars.keys())[0]],
 						style={'width':"80%"}
 						),
 				# html.Br(),
@@ -305,10 +329,10 @@ class UpdateClass:
 	def __init__(self, app):
 		self.app = app
 		dataset = Dataset(mh_csv)
-		self.mh_regressor = Regressor(dataset)
+		self.mh_regressor = Regressor(dataset, district_vars, app, category='district')
 
 		dataset = Dataset(india_csv)
-		self.india_regressor = Regressor(dataset)
+		self.india_regressor = Regressor(dataset, state_vars, app, category='state')
 
 		self.input_id_india = None
 		self.output_id_india = None
@@ -366,40 +390,21 @@ class UpdateClass:
 				), width=800, height=800) for x in inputs]
 
 	def update_india_map(self, input_id_india, output_id_india):
-		y_id = state_vars[output_id_india]
-		
-		if len(input_id_india) == 0:
-			input_id_india = list(state_vars.keys())[0]
-			x_data, y_data, y_pred, corr = self.india_regressor.find_regression(x_id, y_id)
-			x_data, y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x_data, y_data, y_pred])
-		elif len(input_id_india) == 1:
-			x_id = state_vars[input_id_india[0]]
-			x_data, y_data, y_pred, corr = self.india_regressor.find_regression(x_id, y_id)
-			x_data, y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x_data, y_data, y_pred])
-		else:
-			x_id = [state_vars[ii] for ii in input_id_india]
-			x_data, y_data, y_pred, corr = self.india_regressor.find_multivariate_regression(x_id, y_id)
-			x_data = np.array([self.india_regressor.dataset.avg_up_state_variables(self.app.states, [x]) for x in x_data])
-			y_data, y_pred = self.india_regressor.dataset.avg_up_state_variables(self.app.states, [y_data, y_pred])
-			x_data = x_data.T
-			x_data = x_data[:,0,:]
+		x_data, y_data, y_pred, corr = self.india_regressor(input_id_india, output_id_india)
 
 		self.india_corr = "The Correlation Factor is {}".format(corr)
 
 		data = {'state': self.app.states, 'variable': y_pred, 'output_pred': y_pred}
-		if len(input_id_india) > 1:
-			for idx, iid in enumerate(input_id_india):
-				data[iid] = x_data[:,idx]
-		else:
-			data['input'] = x_data
+		
+		import ipdb; ipdb.set_trace()
+		for idx, iid in enumerate(input_id_india):
+			data[iid] = x_data[:,idx]
 
 		if self.display_choice == 'Input':
 			data['variable'] = x_data[:,0]
 			hover_data = ['output_pred']
 		if self.display_choice == 'Prediction':
-			hover_data = ['input']
-			if len(input_id_india) > 1:
-				hover_data = input_id_india
+			hover_data = input_id_india
 
 		self.df_india = App.create_dataframe(data)
 
@@ -413,18 +418,18 @@ class UpdateClass:
 							)
 
 	def update_state_map(self, input_id_mh, output_id_mh):
-		x_id = district_vars[input_id_mh]
-		y_id = district_vars[output_id_mh]
-		x_data, y_data, y_pred, corr = self.mh_regressor.find_regression(x_id, y_id)
-		x_data, y_data, y_pred = self.mh_regressor.dataset.avg_up_district_variables(self.app.districts, [x_data, y_data, y_pred])
+		x_data, y_data, y_pred, corr = self.mh_regressor(input_id_mh, output_id_mh)
 		self.state_corr = "The Correlation Factor is {}".format(corr)
 
-		data = {'district': self.app.districts, 'variable': y_pred, 'input': x_data, 'output_pred': y_pred}
+		data = {'district': self.app.districts, 'variable': y_pred, 'output_pred': y_pred}
+		for idx, iid in enumerate(input_id_mh):
+			data[iid] = x_data[:,idx]
+
 		if self.display_choice == 'Input':
-			data['variable'] = x_data
+			data['variable'] = x_data[:,0]
 			hover_data = ['output_pred']
 		if self.display_choice == 'Prediction':
-			hover_data = ['input']
+			hover_data = input_id_mh
 
 		# import ipdb; ipdb.set_trace()
 		self.df_state = App.create_dataframe(data)
@@ -487,7 +492,7 @@ class UpdateClass:
 		if display_choice == 'Input':
 			hover_data = ['output_pred']
 		if display_choice == 'Prediction':
-			hover_data = ['input']
+			hover_data = self.input_id_india
 
 		self.states_map = px.choropleth(self.df_india,
 							geojson=self.app.india_states_json,
@@ -497,6 +502,9 @@ class UpdateClass:
 							color_continuous_scale=self.colorscale,
 							hover_data=hover_data
 							)
+
+		if display_choice == 'Prediction':
+			hover_data = input_id_mh
 
 		self.districts_map = px.choropleth(self.df_state,
 							geojson=self.app.mh_districts_json,
@@ -511,7 +519,7 @@ class UpdateClass:
 		if self.display_choice == 'Input':
 			hover_data = ['output_pred']
 		if self.display_choice == 'Prediction':
-			hover_data = ['input']
+			hover_data = self.input_id_india
 
 		self.states_map = px.choropleth(self.df_india,
 							geojson=self.app.india_states_json,
@@ -521,6 +529,9 @@ class UpdateClass:
 							color_continuous_scale=colorscale,
 							hover_data=hover_data
 							)
+
+		if self.display_choice == 'Prediction':
+			hover_data = self.input_id_mh
 
 		self.districts_map = px.choropleth(self.df_state,
 							geojson=self.app.mh_districts_json,
