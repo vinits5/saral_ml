@@ -503,7 +503,7 @@ class UpdateClass:
 							)
 
 		if display_choice == 'Prediction':
-			hover_data = input_id_mh
+			hover_data = self.input_id_mh
 
 		self.districts_map = px.choropleth(self.df_state,
 							geojson=self.app.mh_districts_json,
