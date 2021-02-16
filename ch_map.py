@@ -396,7 +396,6 @@ class UpdateClass:
 
 		data = {'state': self.app.states, 'variable': y_pred, 'output_pred': y_pred}
 		
-		import ipdb; ipdb.set_trace()
 		for idx, iid in enumerate(input_id_india):
 			data[iid] = x_data[:,idx]
 
