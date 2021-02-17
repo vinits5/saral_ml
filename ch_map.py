@@ -19,23 +19,38 @@ from scipy.stats import pearsonr, linregress
 # TODOs:
 # 1. Increase number of inputs. (10 to 15 variables)
 # 2. Only 2 to 3 output variables (different from input vars)
-# 3. Rearrange the dash.
+# 3. Rearrange the dash. (done)
 # 4. Add option for multi-variate regression + non-linear model.
 
 
 state_vars = {
 	'Toilet_Facility': 24,
 	'Cooking_Fuel': 25,
-	'Women_Literacy': 8
+	'Electricity': 22,
+	'Drinking_Water': 23,
+	'Women_Literacy': 8,
+	'Women_Illiteracy': 7,
+	'Women_Married_Below18': 11,
+	'Men_Married_Below21': 12,
+	'Spontaneous_Abortion': 21,
+	# Output Vars.
+	'Women_Heard_RTI/STI': 2,
+	'Women_Heard_HIV/AIDS': 3,
+	'Women_Symptoms_RTI/STI': 4,
+	'Women_Symptoms_HIV/AIDS': 5
 }
+state_vars_op = 9
 
 india_csv = "https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/Indian_Data.csv"
 
 district_vars = {
 	'Geographical_Area': 4,
 	'Population': 5,
-	'Govt_Primary_Schools': 6
+	'Govt_Primary_Schools': 6,
+	# Output Vars.
+	'Primary_Health_Centers': 31,
 }
+district_vars_op = 3
 
 mh_csv = "https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/MH_District_Data.csv"
 
@@ -242,25 +257,25 @@ class App:
 			html.H1("Choropleth Maps for Linear Regression", style={'text-align': 'center'}),
 			html.Br(),
 			html.Div([
-				html.P("Select Input Variable for India Map: "),
-				html.P("Select Prediction Variable for India Map: "),
-			], style={'width': '48%', 'display': 'inline-block'}),
+				html.P("Input Variables for India: "),
+				html.P("Prediction Variable for India: "),
+			], style={'width': '24%', 'display': 'inline-block'}),
 			
 			html.Div([
-				dcc.Checklist(id='input_id_india',
-						options = [{'label': variable, 'value': variable} for variable in list(state_vars.keys())],
-						# multi=False,
+				dcc.Dropdown(id='input_id_india',
+						options = [{'label': variable, 'value': variable} for variable in list(state_vars.keys())[:state_vars_op]],
+						multi=True,
 						value=[list(state_vars.keys())[0]],
-						style={'width':"80%"}
+						style={'width':"100%"}
 						),
 				html.Br(),
 				dcc.Dropdown(id='output_id_india',
-						options = [{'label': variable, 'value': variable} for variable in list(state_vars.keys())],
+						options = [{'label': variable, 'value': variable} for variable in list(state_vars.keys())[state_vars_op:]],
 						multi=False,
-						value=list(state_vars.keys())[0],
-						style={'width':"80%"}
+						value=list(state_vars.keys())[state_vars_op],
+						style={'width':"100%"}
 						),
-			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
+			], style={'width': '75%', 'float': 'right', 'display': 'inline-block'}),
 
 			html.Hr(),
 			
@@ -291,25 +306,25 @@ class App:
 
 			html.Hr(),
 			html.Div([
-				html.P("Select Input Variable for Maharashtra Map: "),
-				html.P("Select Prediction Variable for Maharashtra Map: "),
-			], style={'width': '48%', 'display': 'inline-block'}),
+				html.P("Input Variables for Maharashtra: "),
+				html.P("Prediction Variable for Maharashtra: "),
+			], style={'width': '24%', 'display': 'inline-block'}),
 
 			html.Div([
-				dcc.Checklist(id='input_id_mh',
-						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
-						# multi=False,
+				dcc.Dropdown(id='input_id_mh',
+						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())[:district_vars_op]],
+						multi=True,
 						value=[list(district_vars.keys())[0]],
-						style={'width':"80%"}
+						style={'width':"100%"}
 						),
 				html.Br(),
 				dcc.Dropdown(id='output_id_mh',
-						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
+						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())[district_vars_op:]],
 						multi=False,
-						value=list(district_vars.keys())[0],
-						style={'width':"80%"}
+						value=list(district_vars.keys())[district_vars_op],
+						style={'width':"100%"}
 						),
-			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
+			], style={'width': '75%', 'float': 'right', 'display': 'inline-block'}),
 
 			html.Hr(),
 			# html.Br(),
