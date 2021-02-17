@@ -16,6 +16,12 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 from scipy.stats import pearsonr, linregress
 
+# TODOs:
+# 1. Increase number of inputs. (10 to 15 variables)
+# 2. Only 2 to 3 output variables (different from input vars)
+# 3. Rearrange the dash.
+# 4. Add option for multi-variate regression + non-linear model.
+
 
 state_vars = {
 	'Toilet_Facility': 24,
@@ -247,7 +253,7 @@ class App:
 						value=[list(state_vars.keys())[0]],
 						style={'width':"80%"}
 						),
-				# html.Br(),
+				html.Br(),
 				dcc.Dropdown(id='output_id_india',
 						options = [{'label': variable, 'value': variable} for variable in list(state_vars.keys())],
 						multi=False,
@@ -256,27 +262,6 @@ class App:
 						),
 			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
 
-			html.Hr(),
-			html.Div([
-				html.P("Select Input Variable for Maharashtra Map: "),
-				html.P("Select Prediction Variable for Maharashtra Map: "),
-			], style={'width': '48%', 'display': 'inline-block'}),
-
-			html.Div([
-				dcc.Checklist(id='input_id_mh',
-						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
-						# multi=False,
-						value=[list(district_vars.keys())[0]],
-						style={'width':"80%"}
-						),
-				# html.Br(),
-				dcc.Dropdown(id='output_id_mh',
-						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
-						multi=False,
-						value=list(district_vars.keys())[0],
-						style={'width':"80%"}
-						),
-			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
 			html.Hr(),
 			
 			html.Div([
@@ -303,6 +288,29 @@ class App:
 			html.Br(),
 			html.P("The Correlation Factor is []", id='india_corr'),
 			dcc.Graph(id='India_Map', style={'width': '120'}, figure={}),
+
+			html.Hr(),
+			html.Div([
+				html.P("Select Input Variable for Maharashtra Map: "),
+				html.P("Select Prediction Variable for Maharashtra Map: "),
+			], style={'width': '48%', 'display': 'inline-block'}),
+
+			html.Div([
+				dcc.Checklist(id='input_id_mh',
+						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
+						# multi=False,
+						value=[list(district_vars.keys())[0]],
+						style={'width':"80%"}
+						),
+				html.Br(),
+				dcc.Dropdown(id='output_id_mh',
+						options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
+						multi=False,
+						value=list(district_vars.keys())[0],
+						style={'width':"80%"}
+						),
+			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
+
 			html.Hr(),
 			# html.Br(),
 			html.Div([
@@ -394,18 +402,20 @@ class UpdateClass:
 
 		self.india_corr = "The Correlation Factor is {}".format(corr)
 
-		data = {'state': self.app.states, 'variable': y_pred, 'output_pred': y_pred}
+		data = {'state': self.app.states, 'variable': y_pred, 'output_pred': y_pred, 'input': x_data[:,0]}
 		
 		for idx, iid in enumerate(input_id_india):
 			data[iid] = x_data[:,idx]
+		
+		self.df_india = App.create_dataframe(data)
 
 		if self.display_choice == 'Input':
-			data['variable'] = x_data[:,0]
 			hover_data = ['output_pred']
+			self.df_india['variable'] = self.df_india['input']
 		if self.display_choice == 'Prediction':
 			hover_data = input_id_india
+			self.df_india['variable'] = self.df_india['output_pred']
 
-		self.df_india = App.create_dataframe(data)
 
 		self.states_map = px.choropleth(self.df_india,
 							geojson=self.app.india_states_json,
@@ -420,18 +430,20 @@ class UpdateClass:
 		x_data, y_data, y_pred, corr = self.mh_regressor(input_id_mh, output_id_mh)
 		self.state_corr = "The Correlation Factor is {}".format(corr)
 
-		data = {'district': self.app.districts, 'variable': y_pred, 'output_pred': y_pred}
+		data = {'district': self.app.districts, 'variable': y_pred, 'output_pred': y_pred, 'input': x_data[:, 0]}
 		for idx, iid in enumerate(input_id_mh):
 			data[iid] = x_data[:,idx]
 
+		self.df_state = App.create_dataframe(data)
+
 		if self.display_choice == 'Input':
-			data['variable'] = x_data[:,0]
 			hover_data = ['output_pred']
+			self.df_state['variable'] = self.df_state['input']
 		if self.display_choice == 'Prediction':
 			hover_data = input_id_mh
+			self.df_state['variable'] = self.df_state['output_pred']
 
 		# import ipdb; ipdb.set_trace()
-		self.df_state = App.create_dataframe(data)
 
 		self.districts_map = px.choropleth(self.df_state,
 							geojson=self.app.mh_districts_json,
@@ -490,8 +502,10 @@ class UpdateClass:
 	def update_display_choice(self, display_choice):
 		if display_choice == 'Input':
 			hover_data = ['output_pred']
+			self.df_india['variable'] = self.df_india['input']
 		if display_choice == 'Prediction':
 			hover_data = self.input_id_india
+			self.df_india['variable'] = self.df_india['output_pred']
 
 		self.states_map = px.choropleth(self.df_india,
 							geojson=self.app.india_states_json,
@@ -502,8 +516,12 @@ class UpdateClass:
 							hover_data=hover_data
 							)
 
+		if display_choice == 'Input':
+			hover_data = ['output_pred']
+			self.df_state['variable'] = self.df_state['input']
 		if display_choice == 'Prediction':
 			hover_data = self.input_id_mh
+			self.df_state['variable'] = self.df_state['output_pred']
 
 		self.districts_map = px.choropleth(self.df_state,
 							geojson=self.app.mh_districts_json,
