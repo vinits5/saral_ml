@@ -17,10 +17,7 @@ from dash.dependencies import Input, Output
 from scipy.stats import pearsonr, linregress
 
 # TODOs:
-# 1. Increase number of inputs. (10 to 15 variables)
-# 2. Only 2 to 3 output variables (different from input vars)
-# 3. Rearrange the dash. (done)
-# 4. Add option for multi-variate regression + non-linear model.
+# 1. Add option for multi-variate regression + non-linear model.
 
 
 state_vars = {
@@ -47,10 +44,21 @@ district_vars = {
 	'Geographical_Area': 4,
 	'Population': 5,
 	'Govt_Primary_Schools': 6,
+	'Treated Tap Water': 61,
+	'Untreated Tap Water': 62,
+	'Mobile Phone Coverage': 74,
+	'Public Call': 73,
+	'Internet Cafe': 75,
+	'Public Buses': 76,
+	'Railway Station': 78,
+	'Non-agri Area': 92,
 	# Output Vars.
 	'Primary_Health_Centers': 31,
+	'Toilet with Bath': 70,
+	'Toilet w/o Bath': 71,
+	'Asha Workers': 88
 }
-district_vars_op = 3
+district_vars_op = 11
 
 mh_csv = "https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/MH_District_Data.csv"
 
