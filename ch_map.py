@@ -15,6 +15,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 from scipy.stats import pearsonr, linregress
+import plotly.graph_objects as go
 
 # TODOs:
 # 1. Add option for multi-variate regression + non-linear model.
@@ -37,6 +38,7 @@ state_vars = {
 	'Women_Symptoms_HIV/AIDS': 5
 }
 state_vars_op = 9
+state_vars_neg = [7, 11, 12]
 
 india_csv = "https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/Indian_Data.csv"
 
@@ -58,6 +60,7 @@ district_vars = {
 	'Toilet w/o Bath': 71,
 	'Asha Workers': 88
 }
+district_vars_op_binary = [31, 70, 71, 88]
 district_vars_op = 11
 
 mh_csv = "https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/MH_District_Data.csv"
@@ -67,8 +70,9 @@ district_names = district_json_files_df['districts'].to_numpy()
 district_json_files = district_json_files_df['raw_github_locs'].to_numpy()
 
 class Dataset:
-	def __init__(self, file_path):
+	def __init__(self, file_path, category='state'):
 		self.file_path = file_path
+		self.category = category
 		self.df = pd.read_csv(self.file_path)
 		self.fields = self.find_fields()
 		self.district_names_id = 1
@@ -95,6 +99,9 @@ class Dataset:
 	def find_ids(self, field):
 		ids = int(np.where(field == self.fields)[0])
 		return ids
+
+	def negate_state_data(self, data):
+		return 100.0 - data
 
 	@staticmethod
 	def replaceNA(data, replace_value):
@@ -138,8 +145,8 @@ class Dataset:
 			if np.size(idxs) > 0:
 				# result.append(np.mean(variables[idxs[0]]))
 				for var_id in range(len(variables)):
-					# results[var_id].append(np.mean(variables[var_id][idxs[0]]))
-					results[var_id, district_id] = np.mean(variables[var_id][idxs[0]])
+					results[var_id, district_id] = np.sum(variables[var_id][idxs[0]])
+					# results[var_id, district_id] = np.mean(variables[var_id][idxs[0]])
 			else:
 				# result.append(0.0)
 				for var_id in range(len(variables)):
@@ -187,19 +194,39 @@ class Regressor:
 
 	def __call__(self, input_id, output_id, metric=False):
 		y_id = self.vars_dict[output_id]
+		
 		if len(input_id) == 0:
 			x_id = list(self.vars_dict.values())[0]
-			x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			if self.category == 'district':
+				if y_id in district_vars_op_binary:
+					x_data, y_data, y_pred, corr = self.find_multivariate_logistic_regression(x_id, y_id)
+				else:
+					x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			else:
+				x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
 			x_data, y_data, y_pred = self.func(self.map_boundaries, [x_data, y_data, y_pred])
 			x_data = x_data.reshape(-1,1)
 		elif len(input_id) == 1:
 			x_id = self.vars_dict[input_id[0]]
-			x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			if self.category == 'district':
+				if y_id in district_vars_op_binary:
+					x_data, y_data, y_pred, corr = self.find_multivariate_logistic_regression(x_id, y_id)
+				else:
+					x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			else:
+				x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			x_data = x_data.reshape(-1,1)
 			x_data, y_data, y_pred = self.func(self.map_boundaries, [x_data, y_data, y_pred])
 			x_data = x_data.reshape(-1,1)
 		else:
 			x_id = [self.vars_dict[ii] for ii in input_id]
-			x_data, y_data, y_pred, corr = self.find_multivariate_regression(x_id, y_id)
+			if self.category == 'district':
+				if y_id in district_vars_op_binary:
+					x_data, y_data, y_pred, corr = self.find_multivariate_logistic_regression(x_id, y_id)
+				else:
+					x_data, y_data, y_pred, corr = self.find_regression(x_id, y_id)
+			else:					
+				x_data, y_data, y_pred, corr = self.find_multivariate_regression(x_id, y_id)
 			x_data = np.array([self.func(self.map_boundaries, [x]) for x in x_data])
 			y_data, y_pred = self.func(self.map_boundaries, [y_data, y_pred])
 			x_data = x_data.T
@@ -209,6 +236,8 @@ class Regressor:
 	def find_multivariate_regression(self, x_id, y_id, metric=False):
 		x_data = self.dataset.read_data(x_id)
 		x_data = np.array([self.dataset.replaceNA(x.astype(np.float32), 0.0) for x in x_data])
+		x_data = np.array([100.0 - xd if xii in state_vars_neg else xd for xii, xd in zip(x_id, x_data)])
+		
 		y_data = self.dataset.replaceNA(self.dataset.read_data(y_id).astype(np.float32), 0.0)
 
 		from sklearn.linear_model import LinearRegression
@@ -216,8 +245,27 @@ class Regressor:
 		y_pred = model.predict(x_data.T)
 		return x_data, y_data, y_pred, model.score(x_data.T, y_data)
 
+	def find_multivariate_logistic_regression(self, x_id, y_id, metric=False):
+		if isinstance(x_id, int):
+			x_data = self.dataset.replaceNA(self.dataset.read_data(x_id).astype(np.float32), 0.0)
+			x_data = x_data.reshape(1,-1)
+		elif isinstance(x_id, list):
+			x_data = self.dataset.read_data(x_id)
+			x_data = np.array([self.dataset.replaceNA(x.astype(np.float32), 0.0) for x in x_data])
+		y_data = self.dataset.replaceNA(self.dataset.read_data(y_id).astype(np.float32), 0.0)
+		y_data = y_data.astype(np.int)
+
+		from sklearn.linear_model import LogisticRegression
+		model = LogisticRegression().fit(x_data.T, y_data)
+		y_pred = model.predict(x_data.T)
+		# import ipdb; ipdb.set_trace()
+		return x_data, y_data, y_pred, model.score(x_data.T, y_data)
+
 	def find_regression(self, x_id, y_id, correlation=False):
 		x_data = self.dataset.replaceNA(self.dataset.read_data(x_id).astype(np.float32), 0.0)
+		if x_id in state_vars_neg:
+			x_data = 100.0 - x_data
+			
 		y_data = self.dataset.replaceNA(self.dataset.read_data(y_id).astype(np.float32), 0.0)
 
 		slope, intercept, corr, _, _ = linregress(x_data, y_data)
@@ -250,9 +298,12 @@ class App:
 
 	def load_csv(self):
 		self.districts = [self.mh_districts_json['features'][i]['properties']['name_2'] for i in range(len(self.mh_districts_json['features']))]
-		df = pd.read_csv(self.india_choro_csv)
-		lists = [[row[col] for col in df.columns] for row in df.to_dict('records')]
-		self.states = [x[0] for x in lists]
+		# df = pd.read_csv(self.india_choro_csv)
+		# lists = [[row[col] for col in df.columns] for row in df.to_dict('records')]
+		# self.states = [x[0] for x in lists]
+		self.states = []
+		for feature in self.india_states_json["features"]:
+			self.states.append(feature["properties"]["ST_NM"])
 
 	@staticmethod
 	def create_dataframe(data):
@@ -359,10 +410,10 @@ class App:
 class UpdateClass:
 	def __init__(self, app):
 		self.app = app
-		dataset = Dataset(mh_csv)
+		dataset = Dataset(mh_csv, category='district')
 		self.mh_regressor = Regressor(dataset, district_vars, app, category='district')
 
-		dataset = Dataset(india_csv)
+		dataset = Dataset(india_csv, category='state')
 		self.india_regressor = Regressor(dataset, state_vars, app, category='state')
 
 		self.input_id_india = None
@@ -446,8 +497,23 @@ class UpdateClass:
 							locations='state',
 							color='variable',
 							color_continuous_scale=self.colorscale,
-							hover_data=hover_data
+							hover_data=hover_data,
 							)
+		# self.states_map = go.Figure(go.Choroplethmapbox(customdata=self.df_india,
+		# 					geojson=self.app.india_states_json,
+		# 					featureidkey='properties.ST_NM',
+		# 					locations=self.df_india.state,
+		# 					text = self.df_india['state'],
+		# 					z=self.df_india['variable'],
+		# 					hovertemplate = '<b>State</b>: <b>%{text}</b>'+
+		# 									'<br><b>Val </b>: %{z}<br>',
+		# 					marker_opacity=0.5,
+		# 					# color=self.df_india.variable,
+		# 					colorscale=self.colorscale,
+		# 					# hoverinfo=hover_data,
+		# 					))
+		# self.states_map.update_layout(mapbox_style="carto-positron",
+		# 		mapbox_zoom=3, mapbox_center = {"lat": 24, "lon": 78})
 
 	def update_state_map(self, input_id_mh, output_id_mh):
 		x_data, y_data, y_pred, corr = self.mh_regressor(input_id_mh, output_id_mh)
@@ -483,8 +549,13 @@ class UpdateClass:
 
 		resp = requests.get(district_json_file)
 		self.mh_villages_json = json.loads(resp.text)
-
 		self.villages = [self.mh_villages_json['features'][i]['properties']['GPNAME'] for i in range(len(self.mh_villages_json['features']))]
+
+		# file = open('datasets/mh1.json')
+		# self.mh_villages_json = json.load(file)
+
+		# self.villages = [x['properties']['DISTRICT'] for x in self.mh_villages_json['features']]
+		# import ipdb; ipdb.set_trace()
 
 		x_data = self.mh_regressor.dataset.read_data(district_vars[self.input_id_district])
 		x_data = self.mh_regressor.dataset.replaceNA(x_data.astype(np.float32), 0.0)
@@ -502,6 +573,22 @@ class UpdateClass:
 							color_continuous_scale=self.colorscale,
 							# hover_data=hover_data
 							)
+
+		# self.villages_map = go.Figure(go.Choroplethmapbox(customdata=self.df_village,
+		# 					geojson=self.mh_villages_json,
+		# 					featureidkey='properties.GPNAME',
+		# 					locations=self.df_village.villages,
+		# 					text = self.df_village['villages'],
+		# 					z=self.df_village['variable'],
+		# 					hovertemplate = '<b>Village</b>: <b>%{text}</b>'+
+		# 									'<br><b>Value </b>: %{z}<br>',
+		# 					marker_opacity=0.5,
+		# 					# color=self.df_india.variable,
+		# 					colorscale=self.colorscale,
+		# 					# hoverinfo=hover_data,
+		# 					))
+		# self.villages_map.update_layout(mapbox_style="carto-positron",
+		# 		mapbox_zoom=6, mapbox_center = {"lat": 19.75, "lon": 75.72})
 
 	def update_village_map_data(self, input_id_district):
 		x_data = self.mh_regressor.dataset.read_data(district_vars[input_id_district])
