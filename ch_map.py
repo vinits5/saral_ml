@@ -17,9 +17,6 @@ from dash.dependencies import Input, Output
 from scipy.stats import pearsonr, linregress
 import plotly.graph_objects as go
 
-# TODOs:
-# 1. Add option for multi-variate regression + non-linear model.
-
 
 state_vars = {
 	'Toilet_Facility': 24,
@@ -70,14 +67,14 @@ district_names = district_json_files_df['districts'].to_numpy()
 district_json_files = district_json_files_df['raw_github_locs'].to_numpy()
 
 class Dataset:
-	def __init__(self, file_path, category='state'):
+	def __init__(self, file_path):
 		self.file_path = file_path
-		self.category = category
 		self.df = pd.read_csv(self.file_path)
 		self.fields = self.find_fields()
 		self.district_names_id = 1
 		self.state_names_id = 0
 		self.village_names_id = 3
+		self.district = None
 
 	def read_data(self, required_ids):
 		# Arguments:
@@ -155,29 +152,36 @@ class Dataset:
 		results = [results[x,:] for x in range(results.shape[0])]
 		return results
 
-	def find_village_data(self, villages, variables, district):
-		if district == 'Nasik': district = 'Nashik'
+	def find_village_data(self, villages, variables):
+		if self.district == 'Nasik': self.district = 'Nashik'
 		data_districts = self.read_data(self.district_names_id)
 		data_villages = self.read_data(self.village_names_id)
 
-		result = []
-		d_idx = np.where(data_districts == district)
-		
+		result = [[] for _ in range(len(variables))]
+		d_idx = np.where(data_districts == self.district)
+		# import ipdb; ipdb.set_trace()
 		for village in villages:
 			v_idx = np.where(data_villages == village)
 			if np.size(v_idx) == 0:
-				result.append(0)
+				# result.append(0)
+				for i in range(len(variables)):
+					result[i].append(0)
 			else:
 				added = False
 				for ii in v_idx[0]:
 					if ii in d_idx[0]:
-						result.append(variables[ii])
+						# result.append(variables[ii])
+						for i in range(len(variables)):
+							result[i].append(float(variables[i][ii]))
+							# import ipdb; ipdb.set_trace()
 						added = True
 						break
 				if not added:
-					result.append(0)
-
-		return np.array(result).reshape(-1)
+					# result.append(0)
+					for i in range(len(variables)):
+						result[i].append(0)
+		# import ipdb; ipdb.set_trace()
+		return np.array(result)
 
 class Regressor:
 	def __init__(self, dataset, vars_dict, app, category='state'):
@@ -188,16 +192,19 @@ class Regressor:
 		if self.category == 'state': 
 			self.func = self.dataset.avg_up_state_variables
 			self.map_boundaries = self.app.states
-		elif self.category == 'district': 
+		elif self.category == 'district':
 			self.func = self.dataset.avg_up_district_variables
 			self.map_boundaries = self.app.districts
+		elif self.category == 'villages':
+			self.func = self.dataset.find_village_data
+			self.map_boundaries = None
 
 	def __call__(self, input_id, output_id, metric=False):
 		y_id = self.vars_dict[output_id]
 		
 		if len(input_id) == 0:
 			x_id = list(self.vars_dict.values())[0]
-			if self.category == 'district':
+			if self.category == 'district' or self.category == 'villages':
 				if y_id in district_vars_op_binary:
 					x_data, y_data, y_pred, corr = self.find_multivariate_logistic_regression(x_id, y_id)
 				else:
@@ -208,7 +215,7 @@ class Regressor:
 			x_data = x_data.reshape(-1,1)
 		elif len(input_id) == 1:
 			x_id = self.vars_dict[input_id[0]]
-			if self.category == 'district':
+			if self.category == 'district' or self.category == 'villages':
 				if y_id in district_vars_op_binary:
 					x_data, y_data, y_pred, corr = self.find_multivariate_logistic_regression(x_id, y_id)
 				else:
@@ -220,7 +227,7 @@ class Regressor:
 			x_data = x_data.reshape(-1,1)
 		else:
 			x_id = [self.vars_dict[ii] for ii in input_id]
-			if self.category == 'district':
+			if self.category == 'district' or self.category == 'villages':
 				if y_id in district_vars_op_binary:
 					x_data, y_data, y_pred, corr = self.find_multivariate_logistic_regression(x_id, y_id)
 				else:
@@ -265,7 +272,7 @@ class Regressor:
 		x_data = self.dataset.replaceNA(self.dataset.read_data(x_id).astype(np.float32), 0.0)
 		if x_id in state_vars_neg:
 			x_data = 100.0 - x_data
-			
+
 		y_data = self.dataset.replaceNA(self.dataset.read_data(y_id).astype(np.float32), 0.0)
 
 		slope, intercept, corr, _, _ = linregress(x_data, y_data)
@@ -391,43 +398,55 @@ class App:
 				html.P("The Correlation Factor is []", id='state_corr'),
 				html.Br(),
 				dcc.Graph(id='State_Map', style={'width': '120'}, figure={}),
-			], style={'width': '48%', 'float': 'left'}),
+			], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
 			html.Div([
 				dcc.Dropdown(id='select_district',
 					options = [{"value": x, "label": x} for x in district_names],
 					value = 'Dhule',
 					style={'width': "90%"}),
 				dcc.Dropdown(id='input_id_district',
-					options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())],
+					options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())[:district_vars_op]],
+					multi=True,
+					value=[list(district_vars.keys())[0]],
+					style={'width': "90%"}),
+				dcc.Dropdown(id='output_id_district',
+					options = [{'label': variable, 'value': variable} for variable in list(district_vars.keys())[district_vars_op:]],
 					multi=False,
-					value=list(district_vars.keys())[0],
+					value=list(district_vars.keys())[district_vars_op],
 					style={'width': "90%"}),
 				dcc.Graph(id='District_Map', style={'width': '120'}, figure={})
-			], style={'width': '48%', 'float': 'right'}),
+			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
+			html.Br(),
+
 		])
 
 
 class UpdateClass:
 	def __init__(self, app):
 		self.app = app
-		dataset = Dataset(mh_csv, category='district')
+		dataset = Dataset(mh_csv)
 		self.mh_regressor = Regressor(dataset, district_vars, app, category='district')
 
-		dataset = Dataset(india_csv, category='state')
+		dataset = Dataset(india_csv)
 		self.india_regressor = Regressor(dataset, state_vars, app, category='state')
+
+		dataset = Dataset(mh_csv)
+		self.village_regressor = Regressor(dataset, district_vars, app, category='villages')
 
 		self.input_id_india = None
 		self.output_id_india = None
 		self.input_id_mh = None
 		self.output_id_mh = None
 		self.select_district = None
-		self.input_id_district = list(district_vars.keys())[0]
+		self.input_id_district = [list(district_vars.keys())[0]]
+		self.output_id_district = list(district_vars.keys())[district_vars_op]
 		self.display_choice = 'Prediction'
 		self.colorscale = 'greys'
 		self.updated = False
 
 	def __call__(self, input_id_india, output_id_india, input_id_mh, output_id_mh, 
-				display_choice, colorscale, select_district, input_id_district):
+				display_choice, colorscale, select_district, input_id_district,
+				output_id_district):
 
 		if input_id_india != self.input_id_india or output_id_india != self.output_id_india:
 			self.update_india_map(input_id_india, output_id_india)
@@ -449,9 +468,10 @@ class UpdateClass:
 			self.update_village_map(select_district)
 			self.select_district = select_district
 
-		if self.input_id_district != input_id_district:
-			self.update_village_map_data(input_id_district)
-			self.input_id_district = input_id_district
+		if self.input_id_district != input_id_district and self.output_id_district != output_id_district:
+			print(input_id_district, output_id_district)
+			self.update_village_map_data(input_id_district, output_id_district)
+			self.input_id_district, self.output_id_district = input_id_district, output_id_district
 
 		self.states_map, self.districts_map, self.villages_map = self.update_goes([self.states_map, self.districts_map, self.villages_map])
 		self.states_map, self.districts_map, self.villages_map = self.update_margin([self.states_map, self.districts_map, self.villages_map])
@@ -544,19 +564,21 @@ class UpdateClass:
 							)
 
 	def update_village_map(self, select_district):
+		self.village_regressor.dataset.district = select_district
 		district_idx = np.where(select_district == district_names)[0][0]
 		district_json_file = district_json_files[district_idx]
 
 		resp = requests.get(district_json_file)
 		self.mh_villages_json = json.loads(resp.text)
 		self.villages = [self.mh_villages_json['features'][i]['properties']['GPNAME'] for i in range(len(self.mh_villages_json['features']))]
-
+		self.village_regressor.map_boundaries = self.villages
 		# file = open('datasets/mh1.json')
 		# self.mh_villages_json = json.load(file)
 
 		# self.villages = [x['properties']['DISTRICT'] for x in self.mh_villages_json['features']]
 		# import ipdb; ipdb.set_trace()
 
+		'''
 		x_data = self.mh_regressor.dataset.read_data(district_vars[self.input_id_district])
 		x_data = self.mh_regressor.dataset.replaceNA(x_data.astype(np.float32), 0.0)
 		x_data = self.mh_regressor.dataset.find_village_data(self.villages, x_data, select_district)
@@ -564,6 +586,24 @@ class UpdateClass:
 		data = {'villages': self.villages, 'variable': x_data}
 
 		self.df_village = App.create_dataframe(data)
+		'''
+
+		x_data, y_data, y_pred, corr = self.village_regressor(self.input_id_district, self.output_id_district)
+		self.village_regressor.dataset.district = select_district
+		# self.state_corr = "The Correlation Factor is {}".format(corr)
+
+		data = {'villages': self.villages, 'variable': y_pred, 'output_pred': y_pred, 'input': x_data[:, 0]}
+		for idx, iid in enumerate(self.input_id_district):
+			data[iid] = x_data[:,idx]
+
+		self.df_village = App.create_dataframe(data)
+
+		if self.display_choice == 'Input':
+			hover_data = ['output_pred']
+			self.df_village['variable'] = self.df_village['input']
+		if self.display_choice == 'Prediction':
+			hover_data = self.input_id_district
+			self.df_village['variable'] = self.df_village['output_pred']
 		
 		self.villages_map = px.choropleth(self.df_village,
 							geojson=self.mh_villages_json,
@@ -590,15 +630,23 @@ class UpdateClass:
 		# self.villages_map.update_layout(mapbox_style="carto-positron",
 		# 		mapbox_zoom=6, mapbox_center = {"lat": 19.75, "lon": 75.72})
 
-	def update_village_map_data(self, input_id_district):
-		x_data = self.mh_regressor.dataset.read_data(district_vars[input_id_district])
-		x_data = self.mh_regressor.dataset.replaceNA(x_data.astype(np.float32), 0.0)
-		x_data = self.mh_regressor.dataset.find_village_data(self.villages, x_data, self.select_district)
+	def update_village_map_data(self, input_id_district, output_id_district):
+		x_data, y_data, y_pred, corr = self.village_regressor(input_id_district, output_id_district)
+		# self.state_corr = "The Correlation Factor is {}".format(corr)
 
-		data = {'villages': self.villages, 'variable': x_data}
+		data = {'villages': self.villages, 'variable': y_pred, 'output_pred': y_pred, 'input': x_data[:, 0]}
+		for idx, iid in enumerate(input_id_district):
+			data[iid] = x_data[:,idx]
 
 		self.df_village = App.create_dataframe(data)
-		
+
+		if self.display_choice == 'Input':
+			hover_data = ['output_pred']
+			self.df_village['variable'] = self.df_village['input']
+		if self.display_choice == 'Prediction':
+			hover_data = input_id_district
+			self.df_village['variable'] = self.df_village['output_pred']
+
 		self.villages_map = px.choropleth(self.df_village,
 							geojson=self.mh_villages_json,
 							featureidkey='properties.GPNAME',
@@ -694,12 +742,15 @@ update = UpdateClass(app)
 			 Input(component_id='display_choice', component_property='value'),			# Display Input or Prediction Variable
 			 Input(component_id='colorscale', component_property='value'),				# Choose color combination
 			 Input(component_id='select_district', component_property='value'),			# Choose district from MH Map
-			 Input(component_id='input_id_district', component_property='value')]		# Variable to be displayed on MH Map
+			 Input(component_id='input_id_district', component_property='value'),		# Input variable on MH Map
+			 Input(component_id='output_id_district', component_property='value')]		# Variable to be predicted on MH Map
 		)
 
 def update_graph(input_id_india, output_id_india, input_id_mh, output_id_mh, 
-				 display_choice, colorscale, select_district, input_id_district):
+				 display_choice, colorscale, select_district, input_id_district,
+				 output_id_district):
 	return update(input_id_india, output_id_india, input_id_mh, output_id_mh, 
-				  display_choice, colorscale, select_district, input_id_district)
+				  display_choice, colorscale, select_district, input_id_district,
+				  output_id_district)
 
 app.app.run_server()
