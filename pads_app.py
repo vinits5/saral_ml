@@ -41,6 +41,7 @@ class Village:
 	def __init__(self):
 		self.select_district = "Dhule"
 		self.set_village(self.select_district)
+		self.select_village = self.village_updated[0]
 
 	def set_village(self, select_district):
 		district_idx = np.where(select_district == district_names)[0][0]
@@ -90,7 +91,12 @@ class Village:
 
 	# max: 80.88, 21.75
 	# min: 75.38, 17.25
-	def find_closest_villages(self, lat, lon, machine_choice=50000):
+	def find_closest_villages(self, select_village, machine_choice=50000):
+		idx = np.where(self.village_updated==select_village)
+		if idx[0].size > 0:
+			lat = self.locs_updated[idx[0]][0][0]
+			lon = self.locs_updated[idx[0]][0][1]
+
 		dist = self.locs_updated - np.array([[lat, lon]])
 		dist = dist**2
 		dist = np.sum(dist, -1)
@@ -98,7 +104,8 @@ class Village:
 
 		villages_covered = []
 		# highlight = np.zeros((locs_updated.shape[0]), dtype=np.int64)
-		highlight = np.array(['not useful' for _ in range(self.locs_updated.shape[0])])
+		# highlight = np.array(['not useful' for _ in range(self.locs_updated.shape[0])])
+		highlight = np.array([0.0 for _ in range(self.locs_updated.shape[0])])
 		population = 0.0
 		# import ipdb; ipdb.set_trace()
 		for ii in closest:
@@ -107,11 +114,12 @@ class Village:
 					population += int(self.total_population_updated[ii])
 				except:
 					import ipdb; ipdb.set_trace()
-				highlight[ii] = 'useful'
+				# highlight[ii] = 'useful'
+				highlight[ii] = 1.0
 				villages_covered.append(self.village_updated[ii])
 			else:
 				break
-		return highlight, villages_covered
+		return highlight, villages_covered, lat, lon
 
 
 class Update:
@@ -120,90 +128,101 @@ class Update:
 		self.districts_map = None
 		self.village = Village()
 
-	def __call__(self, select_district, input_lat, input_lon, machine_choice):
+	def __call__(self, select_district, machine_choice, select_village):
 		if self.village.select_district != select_district:
 			self.village.set_village(select_district)
-		
-		self.lat_range = "Range of Latitude: {} to {}".format(round(np.min(self.village.locs_updated,0)[0], 3), round(np.max(self.village.locs_updated, 0)[0], 3))
-		self.lon_range = "Range of Longitude: {} to {}".format(round(np.min(self.village.locs_updated,0)[1], 3), round(np.max(self.village.locs_updated, 0)[1], 3))
+			return self.update_map(machine_choice_dict[machine_choice], self.village.village_updated[0])
+
 		try:
-			lat = float(input_lat)
-			lon = float(input_lon)
-			return self.update_map(lat, lon, machine_choice_dict[machine_choice])
+			return self.update_map(machine_choice_dict[machine_choice], select_village)
 		except:
-			return self.india_corr, self.districts_map, self.lat_range, self.lon_range
+			return self.districts_map, [{"value": x, "label": x} for x in self.village.village_updated]
 
-	def update_map(self, lat, lon, machine_choice):
-		highlight, villages_covered = self.village.find_closest_villages(lat, lon, machine_choice)
+	def update_map(self, machine_choice, select_village):
+		highlight, villages_covered, lat, lon = self.village.find_closest_villages(select_village, machine_choice)
 		# print(highlight)
-		result = ""
-		for x in villages_covered:
-			result += x +", "
-		self.india_corr = "Villages: {}".format(result)
 
-		data = {'villages': self.village.village_updated, 'random': highlight, 'lat': self.village.locs_updated[:,0], 'lon': self.village.locs_updated[:,1]}
+		data = {'villages': self.village.village_updated, 'random': highlight, 'lat': self.village.locs_updated[:,0], 'lon': self.village.locs_updated[:,1], 'population': self.village.total_population_updated}
 		df_state = DataFrame(data)
 
-		self.districts_map = px.choropleth(df_state,
-								geojson=self.village.json_data,
-								featureidkey='properties.VILLNAME',
-								locations='villages',
-								color='random',
-								# color_continuous_scale='gray',
-								hover_data=['lat', 'lon']
-								)
-		self.districts_map.update_geos(fitbounds='locations',visible=False)
-		return self.india_corr, self.districts_map, self.lat_range, self.lon_range
+		# self.districts_map = px.choropleth(df_state,
+		# 						geojson=self.village.json_data,
+		# 						featureidkey='properties.VILLNAME',
+		# 						locations='villages',
+		# 						color='random',
+		# 						# color_continuous_scale='gray',
+		# 						hover_data=['population']
+		# 						)
+
+		self.districts_map = go.Figure(go.Choroplethmapbox(customdata=df_state,
+							geojson=self.village.json_data,
+							featureidkey='properties.VILLNAME',
+							locations=df_state.villages,
+							text = df_state['population'],
+							z=df_state['random'],
+							hovertemplate = '<b>State</b>: <b>%{customdata[0]}</b>'+
+											'<br><b>Population</b>: <b>%{customdata[4]}</b><br>',
+							marker_opacity=0.5,
+							# color=self.df_india.variable,
+							# colorscale=self.colorscale,
+							# hoverinfo=hover_data,
+							))
+		self.districts_map.update_layout(mapbox_style="carto-positron",
+				mapbox_zoom=9, mapbox_center = {"lat": lon, "lon": lat}, 
+				height=550, width=1200,
+				title='Sanitary Pads Machine App', title_font_size=20,
+				margin_l=160, margin_r=0, margin_t=40, margin_b=0)
+		# self.districts_map.update_geos(fitbounds='locations',visible=False)
+		# self.districts_map.update_layout(autosize=True)
+		return self.districts_map, [{"value": x, "label": x} for x in self.village.village_updated]
 
 uc = Update()
 app = Dash(__name__)
 
 app.layout = html.Div([
-			html.H1("Choropleth Maps Sanitary Pads", style={'text-align': 'center'}),
-			html.P("Range of Latitude: [] to []", id='lat_range'),
-			html.P("Range of Longitude: [] to []", id='lon_range'),
+			# html.H1("Choropleth Maps Sanitary Pads", style={'text-align': 'center'}),
 			html.Div([
-				html.P("Distirct:"),
-				html.P("Latitude:"),
-				html.P("Longitude:"),
-				html.P("Machine Choice:")
-			], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
-			html.Div([
-				dcc.Dropdown(id='select_district',
+				dcc.Graph(id='map', style={'width': '120'}, figure={}),
+			], style={'width': '100%', 'float': 'center', 'display': 'inline-block'}),
+
+			html.Div([html.P(""), 
+					 ], style={'width': '5%', 'display': 'inline-block'}),
+			html.Div([html.P("District:"), 
+					 ], style={'width': '28%', 'display': 'inline-block'}),
+			html.Div([html.P("Machine Choice:"), 
+					 ], style={'width': '33%', 'display': 'inline-block'}),
+			html.Div([html.P("Select Village:"), 
+					 ], style={'width': '33%', 'display': 'inline-block', 'float': 'right'}),
+
+			html.Div([html.P(""), 
+					 ], style={'width': '5%', 'display': 'inline-block'}),
+			html.Div([dcc.Dropdown(id='select_district',
 					options = [{"value": x, "label": x} for x in district_names],
 					value = 'Dhule',
-					style={'width': "90%"}),
-				html.Br(),
-				dcc.Input(id="input_lat", type="text", placeholder="latitude", value='76.0'),
-				html.Br(),
-				dcc.Input(id="input_lon", type="text", placeholder="longitude", value='18.0'),
-				html.Br(),
-				dcc.Dropdown(id='machine_choice',
+					style={'width': "90%"}),], 
+					style={'width': '28%', 'display': 'inline-block'}),
+			html.Div([dcc.Dropdown(id='machine_choice',
 					options = [{"value": x, "label": x} for x in list(machine_choice_dict.keys())],
 					value = 'machine1',
-					style={'width': "90%"}),
-			], style={'width': '48%', 'float': 'right', 'display': 'inline-block'}),
-			html.Br(),
-			# dbc.Button('Submit', id='submit-val', n_clicks=0),
-			html.Div([
-				html.P("Villages: []", id='villages'),
-				dcc.Graph(id='map', style={'width': '120'}, figure={}),
-			], style={'width': '100%', 'float': 'center', 'display': 'inline-block'})
+					style={'width': "90%"}),], 
+					style={'width': '33%', 'display': 'inline-block'}),
+			html.Div([dcc.Dropdown(id='select_village',
+					options = [{"value": x, "label": x} for x in uc.village.village_updated],
+					value = uc.village.village_updated[0],
+					style={'width': "90%"}),], 
+					style={'width': '33%', 'display': 'inline-block', 'float': 'right'}),			
 			])
 
-@app.callback([Output(component_id='villages', component_property='children'), 
-			   Output(component_id='map', component_property='figure'),
-			   Output(component_id='lat_range', component_property='children'),
-			   Output(component_id='lon_range', component_property='children'),],
+@app.callback([Output(component_id='map', component_property='figure'),
+			   Output(component_id='select_village', component_property='options'),],
 			  [Input("select_district", "value"),
-			   Input("input_lat", "value"),
-			   Input("input_lon", "value"),
-			   Input("machine_choice", "value"),])
+			   Input("machine_choice", "value"),
+			   Input(component_id='select_village', component_property='value'),])
 			   # Input('submit-val', 'n_clicks')])
 
 
-def update_map(select_district, input_lat, input_lon, machine_choice):
-	# print(select_district)
-	return uc(select_district, input_lat, input_lon, machine_choice)
+def update_map(select_district, machine_choice, select_village):
+	# print(select_village)
+	return uc(select_district, machine_choice, select_village)
 
 app.run_server()
