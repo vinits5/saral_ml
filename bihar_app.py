@@ -16,9 +16,9 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
-data = pd.read_csv('bihar.csv')
+data = pd.read_csv('datasets/bihar.csv')
 
-file = open('br.json', 'r')
+file = open('datasets/br.json', 'r')
 json_data = json.load(file)
 
 district_names = set(data['District Name'].to_numpy())
