@@ -48,6 +48,7 @@ class Village:
 		district_json_file = district_json_files[district_idx]
 
 		self.select_district = select_district
+		if select_district == 'Nasik': select_district = "Nashik"
 		resp = requests.get(district_json_file)
 		self.json_data = json.loads(resp.text)
 		villages = []
@@ -65,7 +66,7 @@ class Village:
 		locs = np.array(locs)
 
 		data_districts = np.array(csvfile['1'])[1:]
-		idxs = np.where(data_districts == 'Dhule')
+		idxs = np.where(data_districts == select_district)
 		data_districts = data_districts[idxs[0]]
 
 		data_villages = np.array(csvfile['3'])[idxs[0]]
@@ -76,6 +77,7 @@ class Village:
 		village_updated = []
 		total_population_updated = []
 		locs_updated = []
+		# import ipdb; ipdb.set_trace()
 		for idx, vil in enumerate(villages):
 			v_id = np.where(vil==data_villages)
 			village_updated.append(vil)
@@ -119,6 +121,7 @@ class Village:
 				villages_covered.append(self.village_updated[ii])
 			else:
 				break
+		highlight[idx[0][0]] = 0.5
 		return highlight, villages_covered, lat, lon
 
 
@@ -164,7 +167,7 @@ class Update:
 											'<br><b>Population</b>: <b>%{customdata[4]}</b><br>',
 							marker_opacity=0.5,
 							# color=self.df_india.variable,
-							# colorscale=self.colorscale,
+							colorscale=[[0.0, 'rgb(255,255,255)'], [0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
 							# hoverinfo=hover_data,
 							))
 		self.districts_map.update_layout(mapbox_style="carto-positron",
