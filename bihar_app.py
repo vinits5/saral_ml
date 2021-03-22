@@ -35,11 +35,11 @@ populations = data['Total Population of Village'].to_numpy().reshape(-1)
 # import ipdb; ipdb.set_trace(0)
 
 machine_choice_dict = {
-	'machine1': 10000,
-	'machine2': 20000,
-	'machine3': 30000,
-	'machine4': 40000,
-	'machine5': 50000,
+	'swach-micro': 5700,
+	'swach-1.3': 17000,
+	'swach-3.2': 30000,
+	'swach-4.2': 132000,
+	'swach-5.0': 285000,
 }
 
 target_population = [x/10 for x in range(1, 11)]
