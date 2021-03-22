@@ -166,7 +166,7 @@ app.layout = html.Div([
 					 ], style={'width': '20%', 'display': 'inline-block'}),
 			html.Div([html.P("Machine Choice:"), 
 					 ], style={'width': '25%', 'display': 'inline-block'}),
-			html.Div([html.P("Target Population:"), 
+			html.Div([html.P("Percentage Population Penetrated:"), 
 					 ], style={'width': '25%', 'display': 'inline-block'}),
 			html.Div([html.P("Select Village:"), 
 					 ], style={'width': '25%', 'display': 'inline-block', 'float': 'right'}),
