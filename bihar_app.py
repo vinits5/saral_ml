@@ -25,6 +25,10 @@ json_data = json.loads(resp.text)
 # file = open('datasets/br.json', 'r')
 # json_data = json.load(file)
 
+districts = []
+for dd in json_data['features']:
+	districts.append(dd['properties']['DISTRICT'])
+
 district_names = set(data['District Name'].to_numpy())
 print("DISTRICT: ", list(district_names)[0])
 lats = data['lat'].to_numpy()
@@ -54,6 +58,29 @@ class DataHandler:
 		self.data_district = data.loc[data['District Name'] == select_district]
 		self.village_names = self.data_district['Village Name'].to_numpy()
 
+	@staticmethod
+	def crop(json_data, select_districts):
+		updated_data = {}
+
+		updated_data['type'] = 'FeatureCollection'
+		updated_data['features'] = []
+
+		idxs = []
+		for select_district in select_districts:
+			idxs_temp = np.where(np.array(districts) == select_district)
+			idxs.append(idxs_temp[0])
+		
+		idxs = np.concatenate(idxs)
+		district_villages = []
+		locs = []
+
+		for idx in idxs:
+			updated_data['features'].append(json_data['features'][idx])
+			district_villages.append(json_data['features'][idx]['properties']['NAME'])
+			locs.append(np.mean(json_data['features'][idx]['geometry']['coordinates'][0], 0))
+
+		return updated_data, district_villages, locs
+
 	# max: 80.88, 21.75
 	# min: 75.38, 17.25
 	def find_closest_villages(self, select_village, machine_choice=50000, target_population=0.2):
@@ -67,6 +94,7 @@ class DataHandler:
 		closest = np.argsort(dist)
 
 		villages_targeted = []
+		districts_targeted = []
 		highlight = []
 		populations_targeted = []
 		locations_targeted = []
@@ -82,6 +110,7 @@ class DataHandler:
 				# highlight[ii] = 'useful'
 				village_temp = str(data.iloc[ii]['Village Name'])
 				villages_targeted.append(village_temp)
+				districts_targeted.append(data.iloc[ii]['District Name'])
 				populations_targeted.append(int(data.iloc[ii]['Total Population of Village']))
 				locations_targeted.append(locations[ii])
 
@@ -91,7 +120,9 @@ class DataHandler:
 					highlight.append(1.0)
 			else:
 				break
-		return highlight, villages_targeted, lat, lon, populations_targeted, np.array(locations_targeted)
+		districts_targeted = list(set(districts_targeted))
+		updated_data, district_villages, locs = self.crop(json_data, districts_targeted)
+		return highlight, villages_targeted, lat, lon, populations_targeted, np.array(locations_targeted), updated_data
 
 
 class Update:
@@ -110,7 +141,7 @@ class Update:
 			return self.districts_map, [{"value": x, "label": x} for x in self.dh.village_names]
 
 	def update_map(self, machine_choice, select_village, target_population):
-		highlight, villages_targeted, lat, lon, populations_targeted, locations_targeted = self.dh.find_closest_villages(select_village, machine_choice, target_population)
+		highlight, villages_targeted, lat, lon, populations_targeted, locations_targeted, updated_data = self.dh.find_closest_villages(select_village, machine_choice, target_population)
 		# print(highlight)
 
 		data = {'villages': villages_targeted, 'random': highlight, 'populations': populations_targeted, 'lat': locations_targeted[:, 0], 'lon': locations_targeted[:, 1]}
@@ -125,8 +156,10 @@ class Update:
 		# 						hover_data=['population']
 		# 						)
 
+		import time
+		start = time.time()
 		self.districts_map = go.Figure(go.Choroplethmapbox(customdata=df_state,
-							geojson=json_data,
+							geojson=updated_data,
 							featureidkey='properties.NAME',
 							locations=df_state.villages,
 							text = df_state['random'],
@@ -141,14 +174,16 @@ class Update:
 							colorscale=[[0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
 							# hoverinfo=hover_data,
 							))
+		end = time.time()
+		print("\n\nTime taken for map: ", start-end)
 		# import ipdb; ipdb.set_trace()
+
 		self.districts_map.update_layout(mapbox_style="carto-positron",
 				mapbox_zoom=11, mapbox_center = {"lat": lat, "lon": lon}, 
 				height=550, width=1200,
 				title='Sanitary Pads Machine App', title_font_size=20,
 				margin_l=160, margin_r=0, margin_t=40, margin_b=0)
-		# self.districts_map.update_geos(fitbounds='locations',visible=False)
-		# self.districts_map.update_layout(autosize=True)
+
 		return self.districts_map, [{"value": x, "label": x} for x in self.dh.village_names]
 
 uc = Update()
