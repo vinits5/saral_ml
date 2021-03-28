@@ -16,27 +16,25 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
-# data = pd.read_csv('datasets/bihar.csv')
-data = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/bihar.csv')
+data = pd.read_csv('datasets/bihar.csv')
+# data = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/bihar.csv')
 
-json_filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/br.json'
-resp = requests.get(json_filename)
-json_data = json.loads(resp.text)
-# file = open('datasets/br.json', 'r')
-# json_data = json.load(file)
+# json_filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/br.json'
+# resp = requests.get(json_filename)
+# json_data = json.loads(resp.text)
+file = open('datasets/br.json', 'r')
+json_data = json.load(file)
 
 districts = []
 for dd in json_data['features']:
 	districts.append(dd['properties']['DISTRICT'])
 
 district_names = set(data['District Name'].to_numpy())
-print("DISTRICT: ", list(district_names)[0])
 lats = data['lat'].to_numpy()
 lons = data['lon'].to_numpy()
 locations = np.concatenate([lats.reshape(-1,1), lons.reshape(-1,1)], axis=-1)
 villages = data['Village Name'].to_numpy().reshape(-1)
 populations = data['Total Population of Village'].to_numpy().reshape(-1)
-# import ipdb; ipdb.set_trace(0)
 
 machine_choice_dict = {
 	'swach-micro': 5700,
@@ -57,6 +55,7 @@ class DataHandler:
 	def set_district(self, select_district):
 		self.data_district = data.loc[data['District Name'] == select_district]
 		self.village_names = self.data_district['Village Name'].to_numpy()
+		self.select_district = select_district
 
 	@staticmethod
 	def crop(json_data, select_districts):
@@ -73,13 +72,30 @@ class DataHandler:
 		idxs = np.concatenate(idxs)
 		district_villages = []
 		locs = []
+		population = []
 
 		for idx in idxs:
 			updated_data['features'].append(json_data['features'][idx])
-			district_villages.append(json_data['features'][idx]['properties']['NAME'])
-			locs.append(np.mean(json_data['features'][idx]['geometry']['coordinates'][0], 0))
 
-		return updated_data, district_villages, locs
+		return updated_data
+
+	@staticmethod
+	def search_custom_data(villages_targeted, districts_targeted, select_village):
+		df = []
+		for district in districts_targeted:
+			df.append(data.loc[data['District Name'] == district])
+		df = pd.concat(df)
+		df['color'] = 0.0
+
+		for village in villages_targeted:
+			temp_idx = int(df.loc[df['Village Name'] == village].index[0])
+			if village == select_village:
+				df.at[temp_idx, 'color'] = 0.5
+			else:
+				df.at[temp_idx, 'color'] = 1.0
+		# import ipdb; ipdb.set_trace()
+		df.rename(columns={'Village Name': 'villages'}, inplace=True)
+		return df
 
 	# max: 80.88, 21.75
 	# min: 75.38, 17.25
@@ -103,16 +119,12 @@ class DataHandler:
 		# import ipdb; ipdb.set_trace()
 		for ii in closest:
 			if population<machine_choice:
-				try:
-					population += int(data.iloc[ii]['Total Population of Village'])*target_population
-				except:
-					import ipdb; ipdb.set_trace()
+				population += int(data.iloc[ii]['Total Population of Village'])*target_population
+
 				# highlight[ii] = 'useful'
 				village_temp = str(data.iloc[ii]['Village Name'])
 				villages_targeted.append(village_temp)
 				districts_targeted.append(data.iloc[ii]['District Name'])
-				populations_targeted.append(int(data.iloc[ii]['Total Population of Village']))
-				locations_targeted.append(locations[ii])
 
 				if village_temp == select_village:
 					highlight.append(0.5)
@@ -121,8 +133,10 @@ class DataHandler:
 			else:
 				break
 		districts_targeted = list(set(districts_targeted))
-		updated_data, district_villages, locs = self.crop(json_data, districts_targeted)
-		return highlight, villages_targeted, lat, lon, populations_targeted, np.array(locations_targeted), updated_data
+		updated_data = self.crop(json_data, districts_targeted)
+		# import ipdb; ipdb.set_trace()
+		df = self.search_custom_data(villages_targeted, districts_targeted, select_village)
+		return df, updated_data, lat, lon
 
 
 class Update:
@@ -141,45 +155,30 @@ class Update:
 			return self.districts_map, [{"value": x, "label": x} for x in self.dh.village_names]
 
 	def update_map(self, machine_choice, select_village, target_population):
-		highlight, villages_targeted, lat, lon, populations_targeted, locations_targeted, updated_data = self.dh.find_closest_villages(select_village, machine_choice, target_population)
-		# print(highlight)
-
-		data = {'villages': villages_targeted, 'random': highlight, 'populations': populations_targeted, 'lat': locations_targeted[:, 0], 'lon': locations_targeted[:, 1]}
-		df_state = DataFrame(data)
-
-		# self.districts_map = px.choropleth(df_state,
-		# 						geojson=self.village.json_data,
-		# 						featureidkey='properties.VILLNAME',
-		# 						locations='villages',
-		# 						color='random',
-		# 						# color_continuous_scale='gray',
-		# 						hover_data=['population']
-		# 						)
-
+		df_state, updated_data, lat, lon = self.dh.find_closest_villages(select_village, machine_choice, target_population)
+		
 		import time
 		start = time.time()
 		self.districts_map = go.Figure(go.Choroplethmapbox(customdata=df_state,
 							geojson=updated_data,
 							featureidkey='properties.NAME',
 							locations=df_state.villages,
-							text = df_state['random'],
-							z=df_state['random'],
-							hovertemplate = '<b>Village</b>: <b>%{customdata[0]}</b>'+
-											'<br><b>Population</b>: <b>%{customdata[2]}</b><br>' + 
-											'<br><b>Latitude</b>: <b>%{customdata[3]}</b><br>' +
-											'<br><b>Longitude</b>: <b>%{customdata[4]}</b><br>',
+							text = df_state['color'],
+							z=df_state['color'],
+							hovertemplate = '<b>Village</b>: <b>%{customdata[5]}</b>'+
+											'<br><b>Population</b>: <b>%{customdata[9]}</b><br>',
 							marker_opacity=0.5,
 							# color=self.df_india.variable,
-							# colorscale=[[0.0, 'rgb(255,255,255)'], [0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
-							colorscale=[[0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
+							colorscale=[[0.0, 'rgb(255,255,255)'], [0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
+							# colorscale=[[0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
 							# hoverinfo=hover_data,
 							))
 		end = time.time()
-		print("\n\nTime taken for map: ", start-end)
+		print("\nTime taken for map: ", start-end)
 		# import ipdb; ipdb.set_trace()
 
 		self.districts_map.update_layout(mapbox_style="carto-positron",
-				mapbox_zoom=11, mapbox_center = {"lat": lat, "lon": lon}, 
+				mapbox_zoom=10, mapbox_center = {"lat": lat, "lon": lon}, 
 				height=550, width=1200,
 				title='Sanitary Pads Machine App', title_font_size=20,
 				margin_l=160, margin_r=0, margin_t=40, margin_b=0)
