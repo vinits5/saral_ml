@@ -16,14 +16,14 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
-data = pd.read_csv('datasets/bihar.csv')
-# data = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/bihar.csv')
+# data = pd.read_csv('datasets/bihar.csv')
+data = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/bihar.csv')
 
-# json_filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/br.json'
-# resp = requests.get(json_filename)
-# json_data = json.loads(resp.text)
-file = open('datasets/br.json', 'r')
-json_data = json.load(file)
+json_filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/br.json'
+resp = requests.get(json_filename)
+json_data = json.loads(resp.text)
+# file = open('datasets/br.json', 'r')
+# json_data = json.load(file)
 
 districts = []
 for dd in json_data['features']:
