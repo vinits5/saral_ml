@@ -174,7 +174,7 @@ class Update:
 							# hoverinfo=hover_data,
 							))
 		end = time.time()
-		print("\nTime taken for map: ", start-end)
+		print("\nTime taken for map: ", end-start)
 		# import ipdb; ipdb.set_trace()
 
 		self.districts_map.update_layout(mapbox_style="carto-positron",
