@@ -25,6 +25,7 @@ json_data = json.loads(resp.text)
 # file = open('datasets/br.json', 'r')
 # json_data = json.load(file)
 # district_json_data = json.load(open('datasets/india_district.json', 'r'))
+district_json_data = None
 
 districts = []
 for dd in json_data['features']:
