@@ -24,6 +24,7 @@ resp = requests.get(json_filename)
 json_data = json.loads(resp.text)
 # file = open('datasets/br.json', 'r')
 # json_data = json.load(file)
+# district_json_data = json.load(open('datasets/india_district.json', 'r'))
 
 districts = []
 for dd in json_data['features']:
@@ -58,7 +59,7 @@ class DataHandler:
 		self.select_district = select_district
 
 	@staticmethod
-	def crop(json_data, select_districts):
+	def crop(json_data, district_json_data, select_districts):
 		updated_data = {}
 
 		updated_data['type'] = 'FeatureCollection'
@@ -77,23 +78,31 @@ class DataHandler:
 		for idx in idxs:
 			updated_data['features'].append(json_data['features'][idx])
 
+		# for select_district in select_districts:
+		# 	for dd in district_json_data['features']:
+		# 		if dd['properties']['NAME_2'] == select_district:
+		# 			updated_data.append(dd)
+
 		return updated_data
 
 	@staticmethod
 	def search_custom_data(villages_targeted, districts_targeted, select_village):
-		df = []
+		df1 = []
 		for district in districts_targeted:
-			df.append(data.loc[data['District Name'] == district])
-		df = pd.concat(df)
-		df['color'] = 0.0
+			df1.append(data.loc[data['District Name'] == district])
+		df = pd.concat(df1)
+		df['color'] = 0.0	
 
 		for village in villages_targeted:
-			temp_idx = int(df.loc[df['Village Name'] == village].index[0])
+			temp_indices = np.array(df.loc[df['Village Name'] == village].index)
+			print(village, temp_indices)			
 			if village == select_village:
-				df.at[temp_idx, 'color'] = 0.5
+				for temp_idx in temp_indices:
+					df.at[temp_idx, 'color'] = 0.5
 			else:
-				df.at[temp_idx, 'color'] = 1.0
-		# import ipdb; ipdb.set_trace()
+				for temp_idx in temp_indices:
+					df.at[temp_idx, 'color'] = 1.0
+
 		df.rename(columns={'Village Name': 'villages'}, inplace=True)
 		return df
 
@@ -106,7 +115,7 @@ class DataHandler:
 
 		dist = locations - np.array([[lat, lon]])
 		dist = dist**2
-		dist = np.sum(dist, -1)
+		dist = np.sqrt(np.sum(dist, -1))
 		closest = np.argsort(dist)
 
 		villages_targeted = []
@@ -121,19 +130,17 @@ class DataHandler:
 			if population<machine_choice:
 				population += int(data.iloc[ii]['Total Population of Village'])*target_population
 
-				# highlight[ii] = 'useful'
 				village_temp = str(data.iloc[ii]['Village Name'])
 				villages_targeted.append(village_temp)
 				districts_targeted.append(data.iloc[ii]['District Name'])
-
-				if village_temp == select_village:
-					highlight.append(0.5)
-				else:
-					highlight.append(1.0)
 			else:
 				break
+
+		# print([data.iloc[closest[x]]['Village Name'] for x in range(30)])
+		# print([dist[closest[x]] for x in range(30)])
+
 		districts_targeted = list(set(districts_targeted))
-		updated_data = self.crop(json_data, districts_targeted)
+		updated_data = self.crop(json_data, district_json_data, districts_targeted)
 		# import ipdb; ipdb.set_trace()
 		df = self.search_custom_data(villages_targeted, districts_targeted, select_village)
 		return df, updated_data, lat, lon
@@ -166,7 +173,8 @@ class Update:
 							text = df_state['color'],
 							z=df_state['color'],
 							hovertemplate = '<b>Village</b>: <b>%{customdata[5]}</b>'+
-											'<br><b>Population</b>: <b>%{customdata[9]}</b><br>',
+											'<br><b>Population</b>: <b>%{customdata[9]}</b><br>'+
+											'<b>District</b>: <b>%{customdata[3]}</b>',
 							marker_opacity=0.5,
 							# color=self.df_india.variable,
 							colorscale=[[0.0, 'rgb(255,255,255)'], [0.5, 'rgb(255,0,0)'], [1.0, 'rgb(0,0,0)']],
