@@ -16,14 +16,17 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
-# data = pd.read_csv('datasets/bihar.csv')
-data = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/bihar.csv')
+online_data = True
 
-json_filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/br.json'
-resp = requests.get(json_filename)
-json_data = json.loads(resp.text)
-# file = open('datasets/br.json', 'r')
-# json_data = json.load(file)
+if online_data:
+	data = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/bihar.csv')
+	json_filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/br.json'
+	resp = requests.get(json_filename)
+	json_data = json.loads(resp.text)
+else:
+	data = pd.read_csv('datasets/bihar.csv')
+	file = open('datasets/br.json', 'r')
+	json_data = json.load(file)
 # district_json_data = json.load(open('datasets/india_district.json', 'r'))
 district_json_data = None
 
@@ -96,7 +99,7 @@ class DataHandler:
 
 		for village in villages_targeted:
 			temp_indices = np.array(df.loc[df['Village Name'] == village].index)
-			print(village, temp_indices)			
+			# print(village, temp_indices)			
 			if village == select_village:
 				for temp_idx in temp_indices:
 					df.at[temp_idx, 'color'] = 0.5
@@ -243,11 +246,15 @@ app.layout = html.Div([
 			  [Input("select_district", "value"),
 			   Input("machine_choice", "value"),
 			   Input(component_id='select_village', component_property='value'),
-			   Input("target_population", "value"),])
+			   Input("target_population", "value"),
+			   Input('map', 'clickData'),])
 			   # Input('submit-val', 'n_clicks')])
 
 
-def update_map(select_district, machine_choice, select_village, target_population):
+def update_map(select_district, machine_choice, select_village, target_population, clickData):
+	if clickData is not None:
+		select_village = clickData['points'][0]['location']
+		print(select_village)
 	return uc(select_district, machine_choice, select_village, target_population)
 
 app.run_server()
