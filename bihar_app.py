@@ -163,7 +163,7 @@ class Update:
 		try:
 			return self.update_map(machine_choice_dict[machine_choice], select_village, target_population)
 		except:
-			return self.districts_map, [{"value": x, "label": x} for x in self.dh.village_names]
+			return [self.districts_map]
 
 	def update_map(self, machine_choice, select_village, target_population):
 		df_state, updated_data, lat, lon = self.dh.find_closest_villages(select_village, machine_choice, target_population)
@@ -186,7 +186,7 @@ class Update:
 							# hoverinfo=hover_data,
 							))
 		end = time.time()
-		print("\nTime taken for map: ", end-start)
+		print("Time taken for map: ", end-start)
 		# import ipdb; ipdb.set_trace()
 
 		self.districts_map.update_layout(mapbox_style="carto-positron",
@@ -195,7 +195,7 @@ class Update:
 				title='Sanitary Pads Machine App', title_font_size=20,
 				margin_l=160, margin_r=0, margin_t=40, margin_b=0)
 
-		return self.districts_map, [{"value": x, "label": x} for x in self.dh.village_names]
+		return [self.districts_map]
 
 uc = Update()
 app = Dash(__name__)
@@ -209,13 +209,11 @@ app.layout = html.Div([
 			html.Div([html.P(""), 
 					 ], style={'width': '5%', 'display': 'inline-block'}),
 			html.Div([html.P("District:"), 
-					 ], style={'width': '20%', 'display': 'inline-block'}),
+					 ], style={'width': '28%', 'display': 'inline-block'}),
 			html.Div([html.P("Machine Choice:"), 
-					 ], style={'width': '25%', 'display': 'inline-block'}),
+					 ], style={'width': '33%', 'display': 'inline-block'}),
 			html.Div([html.P("Percentage Population Penetrated:"), 
-					 ], style={'width': '25%', 'display': 'inline-block'}),
-			html.Div([html.P("Select Village:"), 
-					 ], style={'width': '25%', 'display': 'inline-block', 'float': 'right'}),
+					 ], style={'width': '33%', 'display': 'inline-block', 'float': 'right'}),
 
 			html.Div([html.P(""), 
 					 ], style={'width': '5%', 'display': 'inline-block'}),
@@ -223,38 +221,32 @@ app.layout = html.Div([
 					options = [{"value": x, "label": x} for x in district_names],
 					value = list(district_names)[0],
 					style={'width': "90%"}),], 
-					style={'width': '20%', 'display': 'inline-block'}),
+					style={'width': '28%', 'display': 'inline-block'}),
 			html.Div([dcc.Dropdown(id='machine_choice',
 					options = [{"value": x, "label": x} for x in list(machine_choice_dict.keys())],
 					value = list(machine_choice_dict.keys())[0],
 					style={'width': "90%"}),], 
-					style={'width': '25%', 'display': 'inline-block'}),
+					style={'width': '33%', 'display': 'inline-block'}),
 			html.Div([dcc.Dropdown(id='target_population',
 					options = [{"value": x, "label": x} for x in target_population],
 					value = target_population[2],
 					style={'width': "90%"}),], 
-					style={'width': '25%', 'display': 'inline-block'}),
-			html.Div([dcc.Dropdown(id='select_village',
-					options = [{"value": x, "label": x} for x in uc.dh.village_names],
-					value = uc.dh.village_names[0],
-					style={'width': "90%"}),], 
-					style={'width': '25%', 'display': 'inline-block', 'float': 'right'}),			
+					style={'width': '33%', 'display': 'inline-block', 'float': 'right'}),
 			])
 
-@app.callback([Output(component_id='map', component_property='figure'),
-			   Output(component_id='select_village', component_property='options'),],
+@app.callback([Output(component_id='map', component_property='figure')],
 			  [Input("select_district", "value"),
 			   Input("machine_choice", "value"),
-			   Input(component_id='select_village', component_property='value'),
 			   Input("target_population", "value"),
 			   Input('map', 'clickData'),])
-			   # Input('submit-val', 'n_clicks')])
 
 
-def update_map(select_district, machine_choice, select_village, target_population, clickData):
+def update_map(select_district, machine_choice, target_population, clickData):
 	if clickData is not None:
 		select_village = clickData['points'][0]['location']
 		print(select_village)
+	else:
+		select_village = uc.dh.village_names[0]
 	return uc(select_district, machine_choice, select_village, target_population)
 
 app.run_server()
