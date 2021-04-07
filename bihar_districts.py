@@ -17,7 +17,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 from dash.exceptions import PreventUpdate
 
-online_data = True
+online_data = False
 
 if online_data:
 	filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/district/india_district.json'
@@ -27,7 +27,7 @@ if online_data:
 	resp = requests.get(filename)
 	json_data_village = json.loads(resp.text)
 else:
-	file = open('datasets/india/district/india_district.geojson', 'r')
+	file = open('datasets/india/district/india_district.json', 'r')
 	json_data = json.load(file)
 	file = open('datasets/br.json', 'r')
 	json_data_village = json.load(file)
@@ -67,11 +67,17 @@ def crop(json_data_village, select_districts):
 idx = np.where(np.array(states) == 'Bihar')
 bihar_districts = np.array(districts)[idx[0]]
 random = np.array([0 for _ in range(bihar_districts.shape[0])])
+bihar_json_data = {}
+bihar_json_data['type'] = 'FeatureCollection'
+bihar_json_data['features'] = []
+
+for ii in idx[0]:
+	bihar_json_data['features'].append(json_data['features'][ii])
 
 data = {'districts': bihar_districts, 'random': random}
 df = DataFrame(data)
 districts_map = go.Figure(go.Choroplethmapbox(customdata=df,
-							geojson=json_data,
+							geojson=bihar_json_data,
 							featureidkey='properties.NAME_2',
 							locations=df['districts'],
 							# text = df_state['color'],
@@ -87,7 +93,7 @@ districts_map = go.Figure(go.Choroplethmapbox(customdata=df,
 							))
 
 districts_map.update_layout(mapbox_style="carto-positron",
-					mapbox_zoom=7, mapbox_center = {"lat": 25.856, "lon": 85.786}, 
+					mapbox_zoom=6.7, mapbox_center = {"lat": 25.856, "lon": 85.786}, 
 					height=550, width=1200,
 					title='Sanitary Pads Machine App', title_font_size=20,
 					margin_l=160, margin_r=0, margin_t=40, margin_b=0)
@@ -99,9 +105,9 @@ app.layout = html.Div([
 				dcc.Graph(id='map', style={'width': '120'}, figure={}),
 			], style={'width': '100%', 'float': 'center', 'display': 'inline-block'}),
 			html.Div([html.P(""), 
-					 ], style={'width': '40%', 'display': 'inline-block'}),
-			html.Div([html.Button('Back Button', id='btn-1', n_clicks=0)],
-				style={'width': '50%', 'float': 'right'}),
+					 ], style={'width': '35%', 'display': 'inline-block'}),
+			html.Div([html.Button('Go to District Level', id='btn-1', n_clicks=0)],
+				style={'width': '60%', 'float': 'right'}),
 			])
 
 @app.callback([Output(component_id='map', component_property='figure')],
@@ -112,11 +118,11 @@ def update_map(btn1, clickData):
 	# import ipdb; ipdb.set_trace()
 	changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
 	if 'btn-1' in changed_id:
-		print("Back Button Clicked")
+		print("Button Clicked")
 		districts_map.data = [districts_map.data[0]]
 
 	# print(btn1)
-	if clickData is not None:
+	elif clickData is not None:
 		chosen_district = clickData['points'][0]['location']
 		if chosen_district in districts:
 			districts_map.data = [districts_map.data[0]]
@@ -133,7 +139,7 @@ def update_map(btn1, clickData):
 									opacity=1).data[0]
 			)
 			districts_map.update_layout(mapbox_style="carto-positron",
-					mapbox_zoom=7, mapbox_center = {"lat": 25.856, "lon": 85.786}, 
+					mapbox_zoom=6.7, mapbox_center = {"lat": 25.856, "lon": 85.786}, 
 					height=550, width=1200,
 					title='Sanitary Pads Machine App', title_font_size=20,
 					margin_l=160, margin_r=0, margin_t=40, margin_b=0)
