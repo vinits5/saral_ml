@@ -17,7 +17,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 from dash.exceptions import PreventUpdate
 
-online_data = False
+online_data = True
 
 if online_data:
 	filename = 'https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/district/india_district.json'
