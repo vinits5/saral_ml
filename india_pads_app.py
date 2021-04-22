@@ -240,9 +240,18 @@ class DistrictMap:
 		self.villages = [dd['properties']['NAME'] for dd in self.json_data['features']]
 		self.locations = np.array([np.mean(dd['geometry']['coordinates'][0], 0) for dd in self.json_data['features']])
 
-	def create_dataframe(self, district):
+	@staticmethod
+	def correct_district_name(district):
 		if district == 'Nashik': district = 'Nasik'
 		if district == 'Bid': district = 'Beed'
+		if district == 'Ahmednagar': district = 'Ahmadnagar'
+		if district == 'Garhchiroli': district = 'Gadchiroli'
+		if district == 'Raigarh': district = 'Raigad'
+		if district == 'Greater Bombay': district = 'Mumbai'
+		return district
+
+	def create_dataframe(self, district):
+		district = self.correct_district_name(district)
 		district_idxs = np.where(np.array(self.districts) == district)
 		colors = [0 for _ in district_idxs[0]]
 		villages = np.array(self.villages)[district_idxs[0]]
@@ -254,8 +263,7 @@ class DistrictMap:
 		del villages, colors, district_idxs, locations
 
 	def create_district_json_file(self, district):
-		if district == 'Nashik': district = 'Nasik'
-		if district == 'Bid': district = 'Beed'
+		district = self.correct_district_name(district)
 		district_idxs = np.where(np.array(self.districts) == district)
 		self.district_json_data = {}
 		self.district_json_data['type'] = 'FeatureCollection'
@@ -265,8 +273,7 @@ class DistrictMap:
 		del district_idxs
 
 	def create_center(self, district):
-		if district == 'Nashik': district = 'Nasik'
-		if district == 'Bid': district = 'Beed'
+		district = self.correct_district_name(district)
 		state_idxs = np.where(np.array(self.districts) == district)
 		locations = np.array(self.locations)[state_idxs[0]]
 		self.center = np.mean(locations, 0)
@@ -294,7 +301,19 @@ class PadsMap:
 		if state == 'Bihar': state = 'BIHAR'
 		self.data = data_file.loc[data_file['State Name'] == state]
 
+	@staticmethod
+	def correct_district_name(district):
+		if district == 'Nasik': district = 'Nashik'
+		if district == 'Beed': district = 'Bid'
+		# if district == 'Ahmadnagar': district = 'Ahmednagar'
+		# if district == 'Garhchiroli': district = 'Gadchiroli'
+		if district == 'Raigad': district = 'Raigarh'
+		# if district == 'Greater Bombay': district = 'Mumbai'
+		return district
+
 	def find_village_population(self, state, district, village):
+		district = self.correct_district_name(district)
+
 		data = self.data.loc[self.data['Village Name'] == village]
 		data = data.loc[data['District Name'] == district]
 		if len(data) == 1: return int(data['Total Population of Village'].to_numpy())
@@ -305,7 +324,6 @@ class PadsMap:
 				return 0
 
 	def create_dataframe(self, location, target_population, machine_choice):
-		# if district == 'Nashik': district = 'Nasik'
 		dist = self.district_map.locations - location
 		dist = dist**2
 		dist = np.sum(dist, -1)
