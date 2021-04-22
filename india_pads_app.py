@@ -433,8 +433,8 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 				# if remove_state_map: india_map.remove_layer(1)	# remove state map.
 				print("Selected District", selected_district)
 
-				india_map.remove_layer(2)		# Remove old district map
 				india_map.remove_layer(3)
+				india_map.remove_layer(2)		# Remove old district map
 				india_map.add_layer(district_map.create_layer(selected_district))
 				center = district_map.center
 				india_map.update_map_layout(mapbox_zoom=7, lat=center[1], lon=center[0])
