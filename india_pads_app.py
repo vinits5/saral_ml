@@ -292,7 +292,9 @@ class PadsMap:
 	def __init__(self, district_map):
 		self.district_map = district_map
 		self.featureidkey = 'properties.NAME'
-		self.data = data_file.loc[data_file['State Name'] == self.district_map.state] 
+		state = self.district_map.state
+		if state == 'Bihar': state = 'BIHAR'
+		self.data = data_file.loc[data_file['State Name'] == state] 
 		print("Chosen State: ", self.district_map.state)
 		print(self.data.head())
 
