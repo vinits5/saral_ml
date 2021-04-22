@@ -28,7 +28,7 @@ def options():
 						help='Specify path to find the data')
 	parser.add_argument('--drive_location',
 						type=str,
-						default='/content/drive/MyDrive/Job/Saral/india_pads_app/dataset',
+						default='/content/drive/MyDrive/Job/Saral/india_pads_app',
 						help='Specify path from the drive if drive location is choosed.')
 	args = parser.parse_args()
 	return args
