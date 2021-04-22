@@ -147,7 +147,7 @@ class StateMap:
 
 	def create_state_json_file(self, state):
 		state_idxs = np.where(np.array(self.states) == state)
-		print("State Map -> Districts", set(np.array(self.districts)[state_idxs[0]]))
+		# print("State Map -> Districts", set(np.array(self.districts)[state_idxs[0]]))
 		self.state_json_data = {}
 		self.state_json_data['type'] = 'FeatureCollection'
 		self.state_json_data['features'] = []
@@ -236,9 +236,7 @@ class DistrictMap:
 		self.featureidkey = 'properties.NAME'
 		self.states = [dd['properties']['STATE'] for dd in self.json_data['features']]
 		self.districts = [dd['properties']['DISTRICT'] for dd in self.json_data['features']]
-		print("District Map -> Districts", set(self.districts))
-		# self.districts = [dd['properties']['SUB_DIST'] for dd in self.json_data['features']]
-		# import pdb; pdb.set_trace()
+		# print("District Map -> Districts", set(self.districts))
 		self.villages = [dd['properties']['NAME'] for dd in self.json_data['features']]
 		self.locations = np.array([np.mean(dd['geometry']['coordinates'][0], 0) for dd in self.json_data['features']])
 
@@ -294,9 +292,7 @@ class PadsMap:
 		self.featureidkey = 'properties.NAME'
 		state = self.district_map.state
 		if state == 'Bihar': state = 'BIHAR'
-		self.data = data_file.loc[data_file['State Name'] == state] 
-		print("Chosen State: ", self.district_map.state)
-		print(self.data.head())
+		self.data = data_file.loc[data_file['State Name'] == state]
 
 	def find_village_population(self, state, district, village):
 		data = self.data.loc[self.data['Village Name'] == village]
@@ -310,7 +306,6 @@ class PadsMap:
 
 	def create_dataframe(self, location, target_population, machine_choice):
 		# if district == 'Nashik': district = 'Nasik'
-		# dist = self.locs_updated - np.array([[lat, lon]])
 		dist = self.district_map.locations - location
 		dist = dist**2
 		dist = np.sum(dist, -1)
@@ -421,7 +416,6 @@ app.layout = html.Div([
 
 def update_map(btn1, btn2, clickData, machine_choice, target_population):
 	changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-	print(clickData)
 
 	if 'btn-1' in changed_id:
 		if india_map.find_no_layers() == 1 or india_map.find_no_layers() == 2:
@@ -443,11 +437,8 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 			selection.set_district(selected_district)
 			if selection.which_state() in ['Maharashtra', 'Bihar']:
 				district_map, remove_state_map = selection.find_district_map()
-				# if remove_state_map: india_map.remove_layer(1)	# remove state map.
 				print("Selected District", selected_district)
 
-				# india_map.remove_layer(3)
-				# india_map.remove_layer(2)		# Remove old district map
 				india_map.remove_layer_after_idx(2)
 				india_map.add_layer(district_map.create_layer(selected_district))
 				center = district_map.center
@@ -460,9 +451,6 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 			selection.set_state(selected_state)
 			print("State clicked: ", selected_state)
 			
-			# india_map.remove_layer(3)
-			# india_map.remove_layer(2)
-			# india_map.remove_layer(1)
 			india_map.remove_layer_after_idx(1)
 			india_map.add_layer(state_map.create_layer(selected_state))
 
