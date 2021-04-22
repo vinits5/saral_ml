@@ -102,6 +102,15 @@ class IndiaMap:
 				layers_data.append(self.map_india_layer.data[i])
 		self.map_india_layer.data = layers_data
 
+	def remove_layer_after_idx(self, idx=0):
+		layers_data = []
+		for i in range(len(self.map_india_layer.data)):
+			if i>=idx:
+				break
+			else:
+				layers_data.append(self.map_india_layer.data[i])
+		self.map_india_layer.data = layers_data
+
 	def remove_added_layers(self):
 		self.map_india_layer.data = [self.map_india_layer.data[0]]
 
@@ -414,7 +423,7 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 		if india_map.find_no_layers() == 1 or india_map.find_no_layers() == 2:
 			raise PreventUpdate
 		else:
-			india_map.remove_layer(2)		# Remove old district map
+			india_map.remove_layer_after_idx(2)		# Remove old district map
 			india_map.update_map_layout()
 
 	elif 'btn-2' in changed_id:
@@ -433,8 +442,9 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 				# if remove_state_map: india_map.remove_layer(1)	# remove state map.
 				print("Selected District", selected_district)
 
-				india_map.remove_layer(3)
-				india_map.remove_layer(2)		# Remove old district map
+				# india_map.remove_layer(3)
+				# india_map.remove_layer(2)		# Remove old district map
+				india_map.remove_layer_after_idx(2)
 				india_map.add_layer(district_map.create_layer(selected_district))
 				center = district_map.center
 				india_map.update_map_layout(mapbox_zoom=7, lat=center[1], lon=center[0])
@@ -446,7 +456,10 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 			selection.set_state(selected_state)
 			print("State clicked: ", selected_state)
 			
-			india_map.remove_layer(1)						# In order to remove the existing state.
+			# india_map.remove_layer(3)
+			# india_map.remove_layer(2)
+			# india_map.remove_layer(1)
+			india_map.remove_layer_after_idx(1)
 			india_map.add_layer(state_map.create_layer(selected_state))
 
 			india_map.update_map_layout()
