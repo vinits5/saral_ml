@@ -293,6 +293,8 @@ class PadsMap:
 		self.district_map = district_map
 		self.featureidkey = 'properties.NAME'
 		self.data = data_file.loc[data_file['State Name'] == self.district_map.state] 
+		print("Chosen State: ", self.district_map.state)
+		print(self.data.head())
 
 	def find_village_population(self, state, district, village):
 		data = self.data.loc[self.data['Village Name'] == village]
@@ -477,6 +479,7 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 			india_map.add_layer(layer)
 			center = pads_map.district_map.center
 			india_map.update_map_layout(mapbox_zoom=7, lat=center[1], lon=center[0])
+			del pads_map
 		else:
 			raise PreventUpdate
 
