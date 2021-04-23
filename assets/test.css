@@ -1,0 +1,3 @@
+#map > div.js-plotly-plot > div > div > svg:nth-child(1) > g.pielayer{
+	cursor:pointer;
+}
