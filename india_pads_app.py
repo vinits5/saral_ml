@@ -473,7 +473,7 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 			india_map.add_layer(state_map.create_layer(selected_state))
 
 			india_map.update_map_layout()
-		elif clickData['points'][0]['curveNumber'] == 2:
+		elif clickData['points'][0]['curveNumber'] == 2 or clickData['points'][0]['curveNumber'] == 3:
 			print(selection.which_state(), selection.which_district())
 			lat = clickData['points'][0]['customdata'][2]
 			lon = clickData['points'][0]['customdata'][3]
