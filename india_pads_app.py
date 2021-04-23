@@ -343,11 +343,14 @@ class PadsMap:
 		villages = np.array(self.district_map.villages)[self.highlighted_index]
 		colors = [0.5 for _ in villages]
 		colors[0] = 1
+		locations = self.district_map.locations[self.highlighted_index]
 
 		self.df = DataFrame({'villages': villages,
 							 'colors': colors,
+							 'lat': locations[:,1],
+							 'lon': locations[:,0]},
 							 'populations': populations,
-							 'distance': dist[self.highlighted_index]})
+							 'distance': dist[self.highlighted_index])
 		del villages, colors
 
 	def create_json_file(self):
@@ -367,8 +370,8 @@ class PadsMap:
 							locations=self.df['villages'],
 							z=self.df['colors'],
 							hovertemplate = '<b>Village</b>: <b>%{customdata[0]}</b>'+
-											'<br><b>Population</b>: <b>%{customdata[2]}</b><br>'+
-											'<br><b>Distance</b>: <b>%{customdata[3]}</b><br>',
+											'<br><b>Population</b>: <b>%{customdata[4]}</b><br>'+
+											'<br><b>Distance</b>: <b>%{customdata[5]}</b><br>',
 							marker_opacity=1,
 							))
 
