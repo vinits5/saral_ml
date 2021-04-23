@@ -348,9 +348,9 @@ class PadsMap:
 		self.df = DataFrame({'villages': villages,
 							 'colors': colors,
 							 'lat': locations[:,1],
-							 'lon': locations[:,0]},
+							 'lon': locations[:,0],
 							 'populations': populations,
-							 'distance': dist[self.highlighted_index])
+							 'distance': dist[self.highlighted_index]})
 		del villages, colors
 
 	def create_json_file(self):
