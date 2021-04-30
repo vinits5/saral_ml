@@ -24,7 +24,7 @@ def options():
 						type=str, 
 						default='local', 
 						metavar='N',
-						choices=['drive', 'local', 'git'],
+						choices=['drive', 'local', 'git', 'colab'],
 						help='Specify path to find the data')
 	parser.add_argument('--drive_location',
 						type=str,
@@ -45,6 +45,10 @@ class IndiaMap:
 			self.json_data = json.load(file)
 		elif args.data_location == 'drive':
 			filename = os.path.join(args.drive_location, f"datasets/india/state/india_state.json")
+			file = open(filename, 'r')
+			self.json_data = json.load(file)
+		elif args.data_location == 'colab':
+			filename = '/content/saral_ml/datasets/india/state/india_state.json'
 			file = open(filename, 'r')
 			self.json_data = json.load(file)
 
@@ -132,6 +136,10 @@ class StateMap:
 			filename = os.path.join(args.drive_location, f"datasets/india/district/india_district.json")
 			file = open(filename, 'r')
 			self.json_data = json.load(file)
+		elif args.data_location == 'colab':
+			filename = '/content/saral_ml/datasets/india/district/india_district.json'
+			file = open(filename, 'r')
+			self.json_data = json.load(file)
 
 		self.featureidkey = 'properties.NAME_2'
 		self.states = [dd['properties']['NAME_1'] for dd in self.json_data['features']]
@@ -216,13 +224,22 @@ class Selections:
 	def find_pads_map(self):
 		return PadsMap(self.district_map)
 
-def read_maharashtra_json_data():
-	filename1 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra1.json"
-	filename2 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra2.json"
-	resp = requests.get(filename1)
-	json_data1 = json.loads(resp.text)
-	resp = requests.get(filename2)
-	json_data2 = json.loads(resp.text)
+def read_maharashtra_json_data(data_location):
+	if data_location == 'git':
+		filename1 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra1.json"
+		filename2 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra2.json"
+		resp = requests.get(filename1)
+		json_data1 = json.loads(resp.text)
+		resp = requests.get(filename2)
+		json_data2 = json.loads(resp.text)
+	elif data_location == 'colab':
+		filename1 = f"/content/saral_ml/datasets/india/villages/Maharashtra1.json"
+		filename2 = f"/content/saral_ml/datasets/india/villages/Maharashtra2.json"
+		resp = open(filename1, 'r')
+		json_data1 = json.load(resp)
+		resp = open(filename2, 'r')
+		json_data2 = json.load(resp)
+
 	json_data = {}
 	json_data['type'] = 'FeatureCollection'
 	json_data['features'] = []
@@ -238,7 +255,7 @@ class DistrictMap:
 		self.state = state
 		if args.data_location == 'git':
 			if self.state == 'Maharashtra':
-				self.json_data = read_maharashtra_json_data()
+				self.json_data = read_maharashtra_json_data(args.data_location)
 			else:
 				filename = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/{state}.json"
 				resp = requests.get(filename)
@@ -249,6 +266,12 @@ class DistrictMap:
 			self.json_data = json.load(file)
 		elif args.data_location == 'drive':
 			filename = os.path.join(args.drive_location, f"datasets/india/villages/{state}.json")
+			file = open(filename, 'r')
+			self.json_data = json.load(file)
+		elif args.data_location == 'colab':
+			if self.state == 'Maharashtra':
+				self.json_data = read_maharashtra_json_data(args.data_location)
+			filename = f"/content/saral_ml/datasets/india/villages/{state}.json"
 			file = open(filename, 'r')
 			self.json_data = json.load(file)
 
@@ -405,6 +428,8 @@ elif args.data_location == 'drive':
 	data_file = pd.read_csv(os.path.join(args.drive_location, 'datasets/village_compiled_dataset.csv'))
 elif args.data_location == 'local':
 	data_file = pd.read_csv('datasets/village_compiled_dataset.csv')
+elif args.data_location == 'colab':
+	data_file = pd.read_csv('/content/saral_ml/datasets/mh_br_data.csv')
 
 machine_choice_dict = {
 	'swach-micro': 5700,
