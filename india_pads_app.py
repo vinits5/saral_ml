@@ -400,7 +400,7 @@ online_data = False
 args = options()
 
 if args.data_location == 'git':
-	data_file = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/village_compiled_dataset.csv')
+	data_file = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/mh_br_data.csv')
 elif args.data_location == 'drive':
 	data_file = pd.read_csv(os.path.join(args.drive_location, 'datasets/village_compiled_dataset.csv'))
 elif args.data_location == 'local':
