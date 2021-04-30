@@ -271,9 +271,10 @@ class DistrictMap:
 		elif args.data_location == 'colab':
 			if self.state == 'Maharashtra':
 				self.json_data = read_maharashtra_json_data(args.data_location)
-			filename = f"/content/saral_ml/datasets/india/villages/{state}.json"
-			file = open(filename, 'r')
-			self.json_data = json.load(file)
+			else:
+				filename = f"/content/saral_ml/datasets/india/villages/{state}.json"
+				file = open(filename, 'r')
+				self.json_data = json.load(file)
 
 		self.featureidkey = 'properties.NAME'
 		self.states = [dd['properties']['STATE'] for dd in self.json_data['features']]
