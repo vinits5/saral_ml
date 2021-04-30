@@ -216,14 +216,33 @@ class Selections:
 	def find_pads_map(self):
 		return PadsMap(self.district_map)
 
+def read_maharashtra_json_data():
+	filename1 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra1.json"
+	filename2 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra2.json"
+	resp = requests.get(filename1)
+	json_data1 = json.loads(resp.text)
+	resp = requests.get(filename2)
+	json_data2 = json.loads(resp.text)
+	json_data = {}
+	json_data['type'] = 'FeatureCollection'
+	json_data['features'] = []
+	for dd in json_data1['features']:
+		json_data['features'].append(dd)
+	for dd in json_data2['features']:
+		json_data['features'].append(dd)
+	del json_data1, json_data2, dd
+	return json_data
 
 class DistrictMap:
 	def __init__(self, state):
 		self.state = state
 		if args.data_location == 'git':
-			filename = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/{state}.json"
-			resp = requests.get(filename)
-			self.json_data = json.loads(resp.text)
+			if self.state == 'Maharashtra':
+				self.json_data = read_maharashtra_json_data()
+			else:
+				filename = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/{state}.json"
+				resp = requests.get(filename)
+				self.json_data = json.loads(resp.text)
 		elif args.data_location == 'local':
 			filename = f"datasets/india/villages/{state}.json"
 			file = open(filename, 'r')
