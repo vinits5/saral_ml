@@ -224,17 +224,17 @@ class Selections:
 	def find_pads_map(self):
 		return PadsMap(self.district_map)
 
-def read_maharashtra_json_data(data_location):
+def read_json_data_2files(data_location, state):
 	if data_location == 'git':
-		filename1 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra1.json"
-		filename2 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/Maharashtra2.json"
+		filename1 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/{state}1.json"
+		filename2 = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/{state}2.json"
 		resp = requests.get(filename1)
 		json_data1 = json.loads(resp.text)
 		resp = requests.get(filename2)
 		json_data2 = json.loads(resp.text)
 	elif data_location == 'colab':
-		filename1 = f"/content/saral_ml/datasets/india/villages/Maharashtra1.json"
-		filename2 = f"/content/saral_ml/datasets/india/villages/Maharashtra2.json"
+		filename1 = f"/content/saral_ml/datasets/india/villages/{state}1.json"
+		filename2 = f"/content/saral_ml/datasets/india/villages/{state}2.json"
 		resp = open(filename1, 'r')
 		json_data1 = json.load(resp)
 		resp = open(filename2, 'r')
@@ -254,8 +254,8 @@ class DistrictMap:
 	def __init__(self, state):
 		self.state = state
 		if args.data_location == 'git':
-			if self.state == 'Maharashtra':
-				self.json_data = read_maharashtra_json_data(args.data_location)
+			if self.state == 'Maharashtra' or self.state == 'Orrisa':
+				self.json_data = read_json_data_2files(args.data_location, self.state)
 			else:
 				filename = f"https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/{state}.json"
 				resp = requests.get(filename)
@@ -269,8 +269,8 @@ class DistrictMap:
 			file = open(filename, 'r')
 			self.json_data = json.load(file)
 		elif args.data_location == 'colab':
-			if self.state == 'Maharashtra':
-				self.json_data = read_maharashtra_json_data(args.data_location)
+			if self.state == 'Maharashtra' or self.state=='Orrisa':
+				self.json_data = read_json_data_2files(args.data_location, self.state)
 			else:
 				filename = f"/content/saral_ml/datasets/india/villages/{state}.json"
 				file = open(filename, 'r')
@@ -335,14 +335,24 @@ class DistrictMap:
 							marker_opacity=0.5,
 							))
 
+state2csv_state = {
+	'Bihar': 'BIHAR',
+	'Maharashtra': 'Maharashtra',
+	'Goa': 'GOA',
+	'Gujarat': 'GUJARAT',
+	'Karnataka': 'KARNATAKA',
+	'Kerala': 'KERALA',
+	'Orrisa': 'ODISHA',
+	'Sikim': 'SIKKIM',
+}
 
 class PadsMap:
 	def __init__(self, district_map):
 		self.district_map = district_map
 		self.featureidkey = 'properties.NAME'
 		state = self.district_map.state
-		if state == 'Bihar': state = 'BIHAR'
-		self.data = data_file.loc[data_file['State Name'] == state]
+		# if state == 'Bihar': state = 'BIHAR'
+		self.data = data_file.loc[data_file['State Name'] == state2csv_state[state]]
 
 	@staticmethod
 	def correct_district_name(district):
