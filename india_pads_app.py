@@ -434,13 +434,13 @@ online_data = False
 args = options()
 
 if args.data_location == 'git':
-	data_file = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/mh_br_data.csv')
+	data_file = pd.read_csv('https://raw.githubusercontent.com/vinits5/saral_ml/main/datasets/india/villages/village_data.csv')
 elif args.data_location == 'drive':
 	data_file = pd.read_csv(os.path.join(args.drive_location, 'datasets/village_compiled_dataset.csv'))
 elif args.data_location == 'local':
 	data_file = pd.read_csv('datasets/village_compiled_dataset.csv')
 elif args.data_location == 'colab':
-	data_file = pd.read_csv('/content/saral_ml/datasets/mh_br_data.csv')
+	data_file = pd.read_csv('/content/saral_ml/datasets/india/villages/village_data.csv')
 
 machine_choice_dict = {
 	'swach-micro': 5700,
