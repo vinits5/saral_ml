@@ -511,7 +511,7 @@ def update_map(btn1, btn2, clickData, machine_choice, target_population):
 		if clickData['points'][0]['curveNumber'] == 1:
 			selected_district = clickData['points'][0]['location']
 			selection.set_district(selected_district)
-			if selection.which_state() in ['Maharashtra', 'Bihar']:
+			if selection.which_state() in ['Maharashtra', 'Bihar', 'Gujarat', 'Kerala', 'Karnataka', 'Goa', 'Orrisa', 'Sikim']:
 				district_map, remove_state_map = selection.find_district_map()
 				print("Selected District", selected_district)
 
